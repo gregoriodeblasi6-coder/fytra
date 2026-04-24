@@ -15,6 +15,11 @@ export default function OnboardingPage() {
   const [error, setError] = useState('')
   const [checkingProfile, setCheckingProfile] = useState(true)
 
+  // Scroll to top al cambio di step
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior })
+  }, [step])
+
   // Se utente ha gia' completato onboarding, mandalo al feed
   useEffect(() => {
     if (authLoading) return
@@ -265,20 +270,20 @@ export default function OnboardingPage() {
                 label="Username"
                 value={form.username}
                 onChange={v => update('username', v.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
-                placeholder="marco_fit"
+                placeholder="Scegli il tuo username"
                 hint="Solo lettere, numeri e _ (minuscolo)"
               />
               <LabeledInput
                 label="Nome completo"
                 value={form.full_name}
                 onChange={v => update('full_name', v)}
-                placeholder="Marco Rossi"
+                placeholder="Nome e cognome"
               />
               <LabeledInput
                 label={'Et' + '\u00E0'}
                 value={form.age}
                 onChange={v => update('age', v.replace(/\D/g, '').slice(0, 3))}
-                placeholder="27"
+                placeholder="Anni"
                 inputMode="numeric"
                 suffix="anni"
               />
@@ -333,7 +338,7 @@ export default function OnboardingPage() {
                   label="Peso"
                   value={form.weight_kg}
                   onChange={v => update('weight_kg', v)}
-                  placeholder="84"
+                  placeholder="Peso in kg"
                   inputMode="decimal"
                   suffix="kg"
                 />
@@ -341,7 +346,7 @@ export default function OnboardingPage() {
                   label="Altezza"
                   value={form.height_cm}
                   onChange={v => update('height_cm', v.replace(/\D/g, '').slice(0, 3))}
-                  placeholder="178"
+                  placeholder="Altezza in cm"
                   inputMode="numeric"
                   suffix="cm"
                 />
@@ -531,7 +536,7 @@ export default function OnboardingPage() {
                 label="Allergie o intolleranze"
                 value={form.allergies}
                 onChange={v => update('allergies', v)}
-                placeholder="es. lattosio, frutta secca, nessuna"
+                placeholder="Lista allergie separate da virgola"
                 optional
               />
 
@@ -1047,6 +1052,7 @@ function StepSummary({
   error: string
 }) {
   const pretty = (v: string) => v.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+  const prettyList = (v: string) => v.split(',').filter(Boolean).map(pretty).join(', ')
 
   const rows = [
     { label: 'Username', value: form.username ? '@' + form.username : '-' },
@@ -1055,7 +1061,8 @@ function StepSummary({
     { label: 'Fisico', value: form.weight_kg && form.height_cm ? form.weight_kg + ' kg, ' + form.height_cm + ' cm' : '-' },
     { label: 'Obiettivo', value: form.goal ? pretty(form.goal) : '-' },
     { label: 'Attivit' + '\u00E0', value: form.activity_level ? pretty(form.activity_level) : '-' },
-    { label: 'Dieta', value: form.diet_preference ? pretty(form.diet_preference) : 'Nessuna preferenza' },
+    { label: 'Dieta', value: form.diet_preference ? prettyList(form.diet_preference) : 'Nessuna preferenza' },
+    { label: 'Motivazione', value: form.motivation ? prettyList(form.motivation) : '-' },
   ]
 
   return (

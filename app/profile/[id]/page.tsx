@@ -241,22 +241,7 @@ export default function OtherProfilePage() {
             </h2>
             <p style={{ fontSize: '14px', color: '#8E8E93', margin: '2px 0 0' }}>@{username}</p>
 
-            {profile.goal && (
-              <div
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  marginTop: '10px',
-                  padding: '5px 12px',
-                  background: 'rgba(124, 169, 130, 0.15)',
-                  borderRadius: '16px',
-                }}
-              >
-                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#7CA982' }} />
-                <span style={{ fontSize: '12px', fontWeight: 600, color: '#4F7057' }}>{goalLabel(profile.goal)}</span>
-              </div>
-            )}
+            {/* Obiettivo nascosto agli altri utenti per privacy */}
 
             {/* Actions */}
             <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginTop: '16px' }}>
@@ -393,7 +378,7 @@ export default function OtherProfilePage() {
 
             {tab === 'info' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <InfoCard label="Obiettivo" value={profile.goal ? goalLabel(profile.goal) : '-'} />
+                {/* Obiettivo nascosto per privacy */}
                 {profile.age && <InfoCard label={'Et\u00E0'} value={profile.age + ' anni'} />}
                 {profile.weight_kg && <InfoCard label="Peso" value={profile.weight_kg + ' kg'} />}
                 {profile.height_cm && <InfoCard label="Altezza" value={profile.height_cm + ' cm'} />}

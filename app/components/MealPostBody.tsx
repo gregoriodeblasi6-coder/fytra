@@ -15,7 +15,7 @@ type Ingredient = {
   source: string
 }
 
-export default function MealPostBody({ post }: { post: PostData }) {
+export default function MealPostBody({ post, mode = 'preview' }: { post: PostData; mode?: 'preview' | 'full' }) {
   const [ingredients, setIngredients] = useState<Ingredient[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -33,7 +33,6 @@ export default function MealPostBody({ post }: { post: PostData }) {
     setLoading(false)
   }
 
-  // Calcolo totali macro
   const totals = ingredients.reduce(
     (acc, ing) => ({
       kcal: acc.kcal + (Number(ing.kcal_per_100g) * Number(ing.grams)) / 100,
@@ -48,18 +47,88 @@ export default function MealPostBody({ post }: { post: PostData }) {
     ? post.meal_type.charAt(0).toUpperCase() + post.meal_type.slice(1)
     : null
 
+  if (mode === 'preview') {
+    return (
+      <div>
+        {post.meal_photo_url && (
+          <div style={{ width: '100%', aspectRatio: '4/3', overflow: 'hidden' }}>
+            <img
+              src={post.meal_photo_url}
+              alt="Pasto"
+              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+            />
+          </div>
+        )}
+
+        <div style={{ padding: '10px 14px 8px' }}>
+          {(mealTypeLabel || (ingredients.length > 0 && totals.kcal > 0)) && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: post.meal_description ? '6px' : 0, flexWrap: 'wrap' }}>
+              {mealTypeLabel && (
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '3px 8px',
+                    background: 'rgba(209, 122, 60, 0.12)',
+                    borderRadius: '7px',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    color: '#B85A1F',
+                  }}
+                >
+                  <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#D17A3C' }} />
+                  {mealTypeLabel}
+                </span>
+              )}
+              {ingredients.length > 0 && totals.kcal > 0 && (
+                <span
+                  style={{
+                    padding: '3px 8px',
+                    background: 'rgba(0, 0, 0, 0.06)',
+                    borderRadius: '7px',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    color: '#1F2421',
+                  }}
+                >
+                  {formatKcal(totals.kcal)} kcal
+                </span>
+              )}
+              {ingredients.length > 0 && (
+                <span style={{ fontSize: '11px', color: '#8E8E93', fontWeight: 500 }}>
+                  {ingredients.length} {ingredients.length === 1 ? 'ingrediente' : 'ingredienti'}
+                </span>
+              )}
+            </div>
+          )}
+
+          {post.meal_description && (
+            <p
+              style={{
+                fontSize: '14px',
+                color: '#000',
+                margin: 0,
+                lineHeight: 1.4,
+                whiteSpace: 'pre-wrap',
+                display: '-webkit-box',
+                WebkitLineClamp: 3,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden',
+              }}
+            >
+              {post.meal_description}
+            </p>
+          )}
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div style={{ padding: '0 14px 12px' }}>
-      {/* Foto pasto */}
+    <div>
       {post.meal_photo_url && (
-        <div
-          style={{
-            borderRadius: '12px',
-            overflow: 'hidden',
-            marginBottom: '10px',
-            aspectRatio: '4/3',
-          }}
-        >
+        <div style={{ width: '100%', aspectRatio: '4/3', overflow: 'hidden' }}>
           <img
             src={post.meal_photo_url}
             alt="Pasto"
@@ -68,94 +137,68 @@ export default function MealPostBody({ post }: { post: PostData }) {
         </div>
       )}
 
-      {/* Badge tipo pasto + caption */}
-      {mealTypeLabel && (
-        <div
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '5px',
-            padding: '3px 9px',
-            background: 'rgba(209, 122, 60, 0.12)',
-            borderRadius: '8px',
-            marginBottom: '8px',
-          }}
-        >
-          <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#D17A3C' }} />
-          <span style={{ fontSize: '11px', fontWeight: 600, color: '#B85A1F' }}>{mealTypeLabel}</span>
-        </div>
-      )}
-
-      {/* Caption / descrizione */}
-      {post.meal_description && (
-        <p
-          style={{
-            fontSize: '14px',
-            color: '#000',
-            margin: '4px 0 12px',
-            lineHeight: 1.5,
-            whiteSpace: 'pre-wrap',
-          }}
-        >
-          {post.meal_description}
-        </p>
-      )}
-
-      {/* Griglia ingredienti */}
-      {ingredients.length > 0 && (
-        <>
-          <p
-            style={{
-              fontSize: '11px',
-              fontWeight: 700,
-              color: '#8E8E93',
-              letterSpacing: '0.4px',
-              margin: '0 0 6px',
-              textTransform: 'uppercase',
-            }}
-          >
-            Ingredienti
-          </p>
+      <div style={{ padding: '12px 14px 14px' }}>
+        {mealTypeLabel && (
           <div
             style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(2, 1fr)',
-              gap: '6px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '5px',
+              padding: '3px 9px',
+              background: 'rgba(209, 122, 60, 0.12)',
+              borderRadius: '8px',
               marginBottom: '10px',
             }}
           >
-            {ingredients.map(ing => (
-              <IngredientCard key={ing.id} ingredient={ing} />
-            ))}
+            <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#D17A3C' }} />
+            <span style={{ fontSize: '11px', fontWeight: 600, color: '#B85A1F' }}>{mealTypeLabel}</span>
           </div>
-        </>
-      )}
+        )}
 
-      {/* Macro totals card */}
-      {ingredients.length > 0 && totals.kcal > 0 && (
-        <div
-          style={{
-            background: 'linear-gradient(135deg, #1F2421, #3C3C43)',
-            borderRadius: '12px',
-            padding: '12px',
-            color: '#FFF',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-            <p style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.5px', margin: 0, opacity: 0.8 }}>
-              TOTALI STIMATI
+        {post.meal_description && (
+          <p style={{ fontSize: '14px', color: '#000', margin: '4px 0 14px', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
+            {post.meal_description}
+          </p>
+        )}
+
+        {ingredients.length > 0 && (
+          <>
+            <p style={{ fontSize: '11px', fontWeight: 700, color: '#8E8E93', letterSpacing: '0.4px', margin: '0 0 6px', textTransform: 'uppercase' }}>
+              Ingredienti
             </p>
-            <p style={{ fontSize: '22px', fontWeight: 800, margin: 0, letterSpacing: '-0.3px' }}>
-              {Math.round(totals.kcal)} <span style={{ fontSize: '12px', opacity: 0.7, fontWeight: 500 }}>kcal</span>
-            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px', marginBottom: '10px' }}>
+              {ingredients.map(ing => (
+                <IngredientCard key={ing.id} ingredient={ing} />
+              ))}
+            </div>
+          </>
+        )}
+
+        {ingredients.length > 0 && totals.kcal > 0 && (
+          <div
+            style={{
+              background: 'linear-gradient(135deg, #1F2421, #3C3C43)',
+              borderRadius: '12px',
+              padding: '12px',
+              color: '#FFF',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+              <p style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.5px', margin: 0, opacity: 0.8 }}>
+                TOTALI STIMATI
+              </p>
+              <p style={{ fontSize: '22px', fontWeight: 800, margin: 0, letterSpacing: '-0.3px' }}>
+                {formatKcal(totals.kcal)} <span style={{ fontSize: '12px', opacity: 0.7, fontWeight: 500 }}>kcal</span>
+              </p>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
+              <MacroMiniBar label="PROT" value={formatGrams(totals.protein)} color="#7CA982" />
+              <MacroMiniBar label="CARB" value={formatGrams(totals.carbs)} color="#D17A3C" />
+              <MacroMiniBar label="GRASSI" value={formatGrams(totals.fat)} color="#3B82F6" />
+            </div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
-            <MacroMiniBar label="PROT" value={Math.round(totals.protein)} color="#7CA982" />
-            <MacroMiniBar label="CARB" value={Math.round(totals.carbs)} color="#D17A3C" />
-            <MacroMiniBar label="GRASSI" value={Math.round(totals.fat)} color="#3B82F6" />
-          </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }
@@ -167,91 +210,78 @@ function IngredientCard({ ingredient }: { ingredient: Ingredient }) {
     ingredient.source === 'ai' ? '\u2728' : ingredient.source === 'barcode' ? '\uD83D\uDCF1' : null
 
   return (
-    <div
-      style={{
-        background: color.bg,
-        borderRadius: '10px',
-        padding: '8px 10px',
-        border: '1px solid ' + color.border,
-      }}
-    >
+    <div style={{ background: color.bg, borderRadius: '10px', padding: '8px 10px', border: '1px solid ' + color.border, minWidth: 0 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '2px' }}>
         {sourceIcon && <span style={{ fontSize: '9px' }}>{sourceIcon}</span>}
-        <p
-          style={{
-            fontSize: '12px',
-            fontWeight: 600,
-            color: color.text,
-            margin: 0,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-            flex: 1,
-          }}
-        >
+        <p style={{ fontSize: '12px', fontWeight: 600, color: color.text, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
           {ingredient.name}
         </p>
       </div>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', flexWrap: 'wrap' }}>
         <span style={{ fontSize: '14px', fontWeight: 700, color: color.text }}>
-          {Number(ingredient.grams)}<span style={{ fontSize: '10px', fontWeight: 500, marginLeft: '1px' }}>g</span>
+          {formatWeight(Number(ingredient.grams))}
         </span>
         <span style={{ fontSize: '10px', color: color.text, opacity: 0.75 }}>
-          {kcal} kcal
+          {formatKcal(kcal)} kcal
         </span>
       </div>
     </div>
   )
 }
 
-function MacroMiniBar({ label, value, color }: { label: string; value: number; color: string }) {
+function MacroMiniBar({ label, value, color }: { label: string; value: string; color: string }) {
   return (
-    <div
-      style={{
-        background: 'rgba(255,255,255,0.08)',
-        borderRadius: '8px',
-        padding: '6px 8px',
-      }}
-    >
+    <div style={{ background: 'rgba(255,255,255,0.08)', borderRadius: '8px', padding: '6px 8px' }}>
       <p style={{ fontSize: '9px', fontWeight: 700, color, letterSpacing: '0.5px', margin: 0 }}>{label}</p>
-      <p style={{ fontSize: '13px', fontWeight: 700, color: '#FFF', margin: '2px 0 0' }}>
-        {value}<span style={{ fontSize: '10px', opacity: 0.6, fontWeight: 500 }}>g</span>
-      </p>
+      <p style={{ fontSize: '13px', fontWeight: 700, color: '#FFF', margin: '2px 0 0' }}>{value}</p>
     </div>
   )
 }
 
-// Colore ingredienti basato su categoria semantica
+export function formatKcal(n: number): string {
+  n = Math.round(n)
+  if (n < 1000) return String(n)
+  if (n < 10000) return (n / 1000).toFixed(1).replace('.0', '') + 'k'
+  if (n < 1000000) return Math.round(n / 1000) + 'k'
+  if (n < 10000000) return (n / 1000000).toFixed(1).replace('.0', '') + 'M'
+  return Math.round(n / 1000000) + 'M'
+}
+
+export function formatGrams(n: number): string {
+  n = Math.round(n)
+  if (n < 1000) return n + 'g'
+  if (n < 10000) return (n / 1000).toFixed(1).replace('.0', '') + 'kg'
+  return Math.round(n / 1000) + 'kg'
+}
+
+export function formatWeight(n: number): string {
+  if (n < 1000) return n + 'g'
+  if (n < 10000) return (n / 1000).toFixed(1).replace('.0', '') + 'kg'
+  return Math.round(n / 1000) + 'kg'
+}
+
 function ingredientColor(name: string): { bg: string; border: string; text: string } {
   const lower = name.toLowerCase()
-  // Carni e pesci (rame)
-  if (/pollo|manzo|vitello|maiale|salmone|tonno|pesce|uov[ao]|carne|tacchino|bresaola|prosciutto/.test(lower)) {
+  if (/pollo|manzo|vitello|maiale|salmone|tonno|pesce|uov[ao]|carne|tacchino|bresaola|prosciutto|bacon|salame/.test(lower)) {
     return { bg: 'rgba(209, 122, 60, 0.1)', border: 'rgba(209, 122, 60, 0.3)', text: '#9C4E1E' }
   }
-  // Cereali e carbo (ocra)
-  if (/riso|pasta|pane|avena|orzo|farro|quinoa|pizza|cous|cereali/.test(lower)) {
+  if (/riso|pasta|pane|avena|orzo|farro|quinoa|pizza|cous|cereali|focaccia|piadin|crackers/.test(lower)) {
     return { bg: 'rgba(232, 168, 87, 0.15)', border: 'rgba(232, 168, 87, 0.35)', text: '#8B5A1B' }
   }
-  // Verdura (verde)
-  if (/insalata|spinaci|broccoli|zucchin|verdur|pomodor|carote|cavol|lattug|rucola|cetriol/.test(lower)) {
+  if (/insalata|spinaci|broccoli|zucchin|verdur|pomodor|carote|cavol|lattug|rucola|cetriol|melanzan|peperon|radicchi|asparag/.test(lower)) {
     return { bg: 'rgba(124, 169, 130, 0.12)', border: 'rgba(124, 169, 130, 0.3)', text: '#3F6B47' }
   }
-  // Frutta (viola/rosa)
-  if (/mel[ae]|banan|fragol|frutt|pesch|ananas|uva|arancia|kiwi|mirtill|avocad/.test(lower)) {
+  if (/mel[ae]|banan|fragol|frutt|pesch|ananas|uva|arancia|kiwi|mirtill|avocad|ciliegi|albicoc|lampon/.test(lower)) {
     return { bg: 'rgba(168, 85, 247, 0.1)', border: 'rgba(168, 85, 247, 0.3)', text: '#6B21A8' }
   }
-  // Latticini (blu chiaro)
-  if (/yogurt|latt|formaggi|ricott|mozzarel|parmig|grana|burro/.test(lower)) {
+  if (/yogurt|latt|formaggi|ricott|mozzarel|parmig|grana|burro|stracchin|feta/.test(lower)) {
     return { bg: 'rgba(59, 130, 246, 0.1)', border: 'rgba(59, 130, 246, 0.3)', text: '#1E40AF' }
   }
-  // Grassi (giallo/oro)
-  if (/oli[oa]|mandorl|noci|semi|burro|nutella/.test(lower)) {
+  if (/oli[oa]|mandorl|noci|semi|nutella|pistacch|anacard|nocciol/.test(lower)) {
     return { bg: 'rgba(245, 158, 11, 0.12)', border: 'rgba(245, 158, 11, 0.35)', text: '#92400E' }
   }
-  // Legumi (verde scuro)
-  if (/legumi|ceci|fagiol|lenticchi|piseli/.test(lower)) {
+  if (/legumi|ceci|fagiol|lenticchi|piseli|fave|tofu|edamame|tempeh/.test(lower)) {
     return { bg: 'rgba(91, 140, 123, 0.12)', border: 'rgba(91, 140, 123, 0.3)', text: '#365943' }
   }
-  // Default (grigio)
   return { bg: 'rgba(142, 142, 147, 0.1)', border: 'rgba(142, 142, 147, 0.25)', text: '#1F2421' }
 }

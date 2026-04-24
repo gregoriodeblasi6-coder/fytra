@@ -253,7 +253,7 @@ export default function PostCard({
 
       {/* BODY */}
       {post.type === 'pasto' ? (
-        <MealPostBody post={post} />
+        <MealPostBody post={post} mode="preview" />
       ) : post.type === 'allenamento' ? (
         <WorkoutPostBody post={post} />
       ) : (
@@ -338,50 +338,51 @@ export default function PostCard({
 /* ============ WORKOUT BODY ============ */
 function WorkoutPostBody({ post }: { post: PostData }) {
   const stats = [
-    post.workout_duration_min && { label: 'DURATA', value: post.workout_duration_min + ' min', color: '#7CA982' },
+    post.workout_duration_min && { label: 'DURATA', value: formatDuration(post.workout_duration_min), color: '#7CA982' },
     post.workout_distance_km && { label: 'DISTANZA', value: post.workout_distance_km.toFixed(1) + ' km', color: '#3B82F6' },
-    post.workout_speed_kmh && { label: 'VELOCITA', value: post.workout_speed_kmh.toFixed(1) + ' km/h', color: '#8B5CF6' },
+    post.workout_speed_kmh && { label: 'VELOCITA', value: post.workout_speed_kmh.toFixed(1), color: '#8B5CF6', suffix: 'km/h' },
     post.workout_heartrate && { label: 'BPM', value: String(post.workout_heartrate), color: '#FF3B30' },
-  ].filter(Boolean) as Array<{ label: string; value: string; color: string }>
+  ].filter(Boolean) as Array<{ label: string; value: string; color: string; suffix?: string }>
+
+  const title = (post.workout_type || 'Sessione').charAt(0).toUpperCase() + (post.workout_type || 'Sessione').slice(1)
 
   return (
-    <div style={{ padding: '0 14px 12px' }}>
-      {/* Header grande tipo allenamento */}
-      <div
-        style={{
-          background: 'linear-gradient(135deg, rgba(124, 169, 130, 0.15), rgba(91, 140, 123, 0.08))',
-          borderRadius: '12px',
-          padding: '12px 14px',
-          marginBottom: '10px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px',
-        }}
-      >
+    <div style={{ padding: '12px 14px 12px' }}>
+      {/* Header: icona + titolo + (se presente) prima riga descrizione */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: post.workout_notes || stats.length > 0 ? '12px' : 0 }}>
         <div
           style={{
-            width: '40px',
-            height: '40px',
-            borderRadius: '12px',
-            background: '#7CA982',
+            width: '36px',
+            height: '36px',
+            borderRadius: '10px',
+            background: 'rgba(124, 169, 130, 0.15)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             flexShrink: 0,
           }}
         >
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4F7057" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M6.5 6.5h11v11h-11z" />
             <path d="M9.5 9.5h5v5h-5z" />
           </svg>
         </div>
-        <div>
-          <p style={{ fontSize: '10px', fontWeight: 700, color: '#4F7057', letterSpacing: '0.5px', margin: 0 }}>
-            ALLENAMENTO
-          </p>
-          <p style={{ fontSize: '16px', fontWeight: 700, color: '#000', margin: '2px 0 0', textTransform: 'capitalize' }}>
-            {post.workout_type || 'Sessione'}
-          </p>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{ fontSize: '16px', fontWeight: 700, color: '#000', margin: 0 }}>{title}</p>
+          {post.workout_notes && (
+            <p
+              style={{
+                fontSize: '12px',
+                color: '#8E8E93',
+                margin: '2px 0 0',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {post.workout_notes}
+            </p>
+          )}
         </div>
       </div>
 
@@ -392,36 +393,31 @@ function WorkoutPostBody({ post }: { post: PostData }) {
             display: 'grid',
             gridTemplateColumns: 'repeat(' + Math.min(stats.length, 4) + ', 1fr)',
             gap: '6px',
-            marginBottom: '10px',
           }}
         >
           {stats.map((s, i) => (
-            <div
-              key={i}
-              style={{
-                background: '#F2F2F7',
-                borderRadius: '10px',
-                padding: '8px 6px',
-                textAlign: 'center',
-              }}
-            >
+            <div key={i} style={{ background: '#F2F2F7', borderRadius: '10px', padding: '8px 6px', textAlign: 'center' }}>
               <p style={{ fontSize: '9px', fontWeight: 700, color: s.color, letterSpacing: '0.5px', margin: 0 }}>
                 {s.label}
               </p>
-              <p style={{ fontSize: '14px', fontWeight: 700, color: '#000', margin: '3px 0 0' }}>{s.value}</p>
+              <p style={{ fontSize: '14px', fontWeight: 700, color: '#000', margin: '3px 0 0' }}>
+                {s.value}
+                {s.suffix && <span style={{ fontSize: '10px', opacity: 0.6, fontWeight: 500, marginLeft: '2px' }}>{s.suffix}</span>}
+              </p>
             </div>
           ))}
         </div>
       )}
-
-      {/* Note */}
-      {post.workout_notes && (
-        <p style={{ fontSize: '13px', color: '#3C3C43', margin: '4px 0 0', lineHeight: 1.4, whiteSpace: 'pre-wrap' }}>
-          {post.workout_notes}
-        </p>
-      )}
     </div>
   )
+}
+
+function formatDuration(minutes: number): string {
+  if (minutes < 60) return minutes + 'min'
+  const h = Math.floor(minutes / 60)
+  const m = minutes % 60
+  if (m === 0) return h + 'h'
+  return h + 'h' + m
 }
 
 /* ============ SMALL UI ============ */

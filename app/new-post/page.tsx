@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation'
 type PostType = 'pasto' | 'allenamento' | null
 type WorkoutSource = 'manuale' | 'watch'
 type MealType = 'colazione' | 'pranzo' | 'cena' | 'snack'
-type WorkoutType = 'corsa' | 'bici' | 'palestra' | 'camminata' | 'yoga' | 'hiit' | 'nuoto' | 'altro'
+type WorkoutType = 'corsa' | 'bici' | 'palestra' | 'camminata' | 'yoga' | 'hiit' | 'nuoto' | 'calcio' | 'tennis' | 'padel' | 'basket' | 'pallavolo' | 'pilates' | 'crossfit' | 'boxe' | 'arti_marziali' | 'sci' | 'snowboard' | 'surf' | 'arrampicata' | 'rugby' | 'danza' | 'escursionismo' | 'altro'
 
 type Ingredient = {
   id: string
@@ -23,28 +23,119 @@ type Ingredient = {
 
 // Mini database alimenti (valori medi USDA/CREA per 100g)
 const FOOD_DB: Array<Omit<Ingredient, 'id' | 'grams' | 'source'>> = [
+  // Cereali e derivati
   { name: 'Riso bianco cotto', kcal_per_100g: 130, protein_per_100g: 2.7, carbs_per_100g: 28, fat_per_100g: 0.3 },
   { name: 'Riso integrale cotto', kcal_per_100g: 111, protein_per_100g: 2.6, carbs_per_100g: 23, fat_per_100g: 0.9 },
   { name: 'Pasta cotta', kcal_per_100g: 158, protein_per_100g: 5.8, carbs_per_100g: 31, fat_per_100g: 0.9 },
+  { name: 'Pasta integrale cotta', kcal_per_100g: 149, protein_per_100g: 6.3, carbs_per_100g: 28, fat_per_100g: 1.6 },
+  { name: 'Pane bianco', kcal_per_100g: 265, protein_per_100g: 9, carbs_per_100g: 49, fat_per_100g: 3.2 },
+  { name: 'Pane integrale', kcal_per_100g: 247, protein_per_100g: 13, carbs_per_100g: 41, fat_per_100g: 3.4 },
+  { name: 'Pizza margherita', kcal_per_100g: 266, protein_per_100g: 11, carbs_per_100g: 33, fat_per_100g: 10 },
+  { name: 'Focaccia', kcal_per_100g: 285, protein_per_100g: 7.5, carbs_per_100g: 48, fat_per_100g: 6.8 },
+  { name: 'Piadina', kcal_per_100g: 312, protein_per_100g: 8, carbs_per_100g: 51, fat_per_100g: 8 },
+  { name: 'Crackers', kcal_per_100g: 428, protein_per_100g: 10, carbs_per_100g: 69, fat_per_100g: 12 },
+  { name: 'Cereali colazione', kcal_per_100g: 378, protein_per_100g: 7, carbs_per_100g: 84, fat_per_100g: 1.7 },
+  { name: 'Avena fiocchi', kcal_per_100g: 389, protein_per_100g: 16.9, carbs_per_100g: 66, fat_per_100g: 6.9 },
+  { name: 'Orzo perlato cotto', kcal_per_100g: 123, protein_per_100g: 2.3, carbs_per_100g: 28, fat_per_100g: 0.4 },
+  { name: 'Farro cotto', kcal_per_100g: 127, protein_per_100g: 5.5, carbs_per_100g: 25, fat_per_100g: 0.8 },
+  { name: 'Quinoa cotta', kcal_per_100g: 120, protein_per_100g: 4.4, carbs_per_100g: 21, fat_per_100g: 1.9 },
+  { name: 'Cous cous cotto', kcal_per_100g: 112, protein_per_100g: 3.8, carbs_per_100g: 23, fat_per_100g: 0.2 },
+  { name: 'Gnocchi di patate', kcal_per_100g: 173, protein_per_100g: 4, carbs_per_100g: 34, fat_per_100g: 1.9 },
+  // Carni
   { name: 'Petto di pollo', kcal_per_100g: 165, protein_per_100g: 31, carbs_per_100g: 0, fat_per_100g: 3.6 },
+  { name: 'Coscia di pollo', kcal_per_100g: 209, protein_per_100g: 26, carbs_per_100g: 0, fat_per_100g: 11 },
+  { name: 'Tacchino petto', kcal_per_100g: 135, protein_per_100g: 30, carbs_per_100g: 0, fat_per_100g: 1 },
+  { name: 'Manzo magro', kcal_per_100g: 143, protein_per_100g: 26, carbs_per_100g: 0, fat_per_100g: 4 },
+  { name: 'Vitello', kcal_per_100g: 107, protein_per_100g: 21, carbs_per_100g: 0, fat_per_100g: 2.8 },
+  { name: 'Maiale magro', kcal_per_100g: 143, protein_per_100g: 21, carbs_per_100g: 0, fat_per_100g: 6 },
+  { name: 'Bresaola', kcal_per_100g: 151, protein_per_100g: 32, carbs_per_100g: 0.4, fat_per_100g: 2.4 },
+  { name: 'Prosciutto crudo', kcal_per_100g: 267, protein_per_100g: 26, carbs_per_100g: 0, fat_per_100g: 18 },
+  { name: 'Prosciutto cotto', kcal_per_100g: 215, protein_per_100g: 20, carbs_per_100g: 1, fat_per_100g: 14.7 },
+  { name: 'Salame', kcal_per_100g: 407, protein_per_100g: 22, carbs_per_100g: 1, fat_per_100g: 35 },
+  { name: 'Mortadella', kcal_per_100g: 288, protein_per_100g: 14, carbs_per_100g: 1, fat_per_100g: 25 },
+  // Pesce
   { name: 'Salmone', kcal_per_100g: 208, protein_per_100g: 20, carbs_per_100g: 0, fat_per_100g: 13 },
   { name: 'Tonno al naturale', kcal_per_100g: 116, protein_per_100g: 26, carbs_per_100g: 0, fat_per_100g: 1 },
+  { name: 'Tonno fresco', kcal_per_100g: 144, protein_per_100g: 23, carbs_per_100g: 0, fat_per_100g: 5 },
+  { name: 'Orata', kcal_per_100g: 121, protein_per_100g: 20, carbs_per_100g: 0, fat_per_100g: 4.5 },
+  { name: 'Branzino', kcal_per_100g: 97, protein_per_100g: 17, carbs_per_100g: 0, fat_per_100g: 3 },
+  { name: 'Merluzzo', kcal_per_100g: 82, protein_per_100g: 18, carbs_per_100g: 0, fat_per_100g: 0.7 },
+  { name: 'Gamberi', kcal_per_100g: 71, protein_per_100g: 13, carbs_per_100g: 0.2, fat_per_100g: 1.4 },
+  { name: 'Calamari', kcal_per_100g: 92, protein_per_100g: 15.6, carbs_per_100g: 3, fat_per_100g: 1.4 },
+  { name: 'Acciughe', kcal_per_100g: 96, protein_per_100g: 17, carbs_per_100g: 0, fat_per_100g: 2.6 },
+  // Uova e latticini
   { name: 'Uova', kcal_per_100g: 155, protein_per_100g: 13, carbs_per_100g: 1.1, fat_per_100g: 11 },
-  { name: 'Avocado', kcal_per_100g: 160, protein_per_100g: 2, carbs_per_100g: 9, fat_per_100g: 15 },
-  { name: 'Pomodori', kcal_per_100g: 18, protein_per_100g: 0.9, carbs_per_100g: 3.9, fat_per_100g: 0.2 },
-  { name: 'Insalata mista', kcal_per_100g: 20, protein_per_100g: 1.5, carbs_per_100g: 3, fat_per_100g: 0.3 },
-  { name: 'Pane integrale', kcal_per_100g: 247, protein_per_100g: 13, carbs_per_100g: 41, fat_per_100g: 3.4 },
+  { name: 'Albume uova', kcal_per_100g: 52, protein_per_100g: 10.9, carbs_per_100g: 0.7, fat_per_100g: 0.2 },
+  { name: 'Latte intero', kcal_per_100g: 64, protein_per_100g: 3.3, carbs_per_100g: 4.9, fat_per_100g: 3.6 },
+  { name: 'Latte scremato', kcal_per_100g: 36, protein_per_100g: 3.5, carbs_per_100g: 5.3, fat_per_100g: 0.2 },
   { name: 'Yogurt greco', kcal_per_100g: 97, protein_per_100g: 9, carbs_per_100g: 3.6, fat_per_100g: 5 },
-  { name: 'Banana', kcal_per_100g: 89, protein_per_100g: 1.1, carbs_per_100g: 23, fat_per_100g: 0.3 },
-  { name: 'Mela', kcal_per_100g: 52, protein_per_100g: 0.3, carbs_per_100g: 14, fat_per_100g: 0.2 },
-  { name: 'Mandorle', kcal_per_100g: 579, protein_per_100g: 21, carbs_per_100g: 22, fat_per_100g: 50 },
-  { name: 'Olio extravergine', kcal_per_100g: 884, protein_per_100g: 0, carbs_per_100g: 0, fat_per_100g: 100 },
+  { name: 'Yogurt bianco', kcal_per_100g: 66, protein_per_100g: 3.8, carbs_per_100g: 4.7, fat_per_100g: 3.5 },
+  { name: 'Mozzarella', kcal_per_100g: 253, protein_per_100g: 18.7, carbs_per_100g: 0.7, fat_per_100g: 19.5 },
   { name: 'Parmigiano', kcal_per_100g: 392, protein_per_100g: 36, carbs_per_100g: 4, fat_per_100g: 26 },
   { name: 'Ricotta', kcal_per_100g: 174, protein_per_100g: 11, carbs_per_100g: 3, fat_per_100g: 13 },
-  { name: 'Patate lesse', kcal_per_100g: 87, protein_per_100g: 1.9, carbs_per_100g: 20, fat_per_100g: 0.1 },
-  { name: 'Legumi cotti', kcal_per_100g: 116, protein_per_100g: 9, carbs_per_100g: 20, fat_per_100g: 0.5 },
-  { name: 'Quinoa cotta', kcal_per_100g: 120, protein_per_100g: 4.4, carbs_per_100g: 21, fat_per_100g: 1.9 },
+  { name: 'Stracchino', kcal_per_100g: 300, protein_per_100g: 18, carbs_per_100g: 0.8, fat_per_100g: 25 },
+  { name: 'Feta', kcal_per_100g: 264, protein_per_100g: 14, carbs_per_100g: 4, fat_per_100g: 21 },
+  { name: 'Burro', kcal_per_100g: 717, protein_per_100g: 0.9, carbs_per_100g: 0.1, fat_per_100g: 81 },
+  // Verdure
+  { name: 'Pomodori', kcal_per_100g: 18, protein_per_100g: 0.9, carbs_per_100g: 3.9, fat_per_100g: 0.2 },
+  { name: 'Insalata mista', kcal_per_100g: 20, protein_per_100g: 1.5, carbs_per_100g: 3, fat_per_100g: 0.3 },
+  { name: 'Lattuga', kcal_per_100g: 15, protein_per_100g: 1.4, carbs_per_100g: 2.9, fat_per_100g: 0.2 },
+  { name: 'Rucola', kcal_per_100g: 25, protein_per_100g: 2.6, carbs_per_100g: 3.7, fat_per_100g: 0.7 },
   { name: 'Spinaci', kcal_per_100g: 23, protein_per_100g: 2.9, carbs_per_100g: 3.6, fat_per_100g: 0.4 },
+  { name: 'Broccoli', kcal_per_100g: 34, protein_per_100g: 2.8, carbs_per_100g: 7, fat_per_100g: 0.4 },
+  { name: 'Zucchine', kcal_per_100g: 17, protein_per_100g: 1.2, carbs_per_100g: 3.1, fat_per_100g: 0.3 },
+  { name: 'Melanzane', kcal_per_100g: 25, protein_per_100g: 1, carbs_per_100g: 5.9, fat_per_100g: 0.2 },
+  { name: 'Peperoni', kcal_per_100g: 26, protein_per_100g: 1, carbs_per_100g: 6.3, fat_per_100g: 0.3 },
+  { name: 'Carote', kcal_per_100g: 41, protein_per_100g: 0.9, carbs_per_100g: 9.6, fat_per_100g: 0.2 },
+  { name: 'Cetrioli', kcal_per_100g: 16, protein_per_100g: 0.7, carbs_per_100g: 3.6, fat_per_100g: 0.1 },
+  { name: 'Cipolla', kcal_per_100g: 40, protein_per_100g: 1.1, carbs_per_100g: 9.3, fat_per_100g: 0.1 },
+  { name: 'Patate lesse', kcal_per_100g: 87, protein_per_100g: 1.9, carbs_per_100g: 20, fat_per_100g: 0.1 },
+  { name: 'Patate fritte', kcal_per_100g: 312, protein_per_100g: 3.4, carbs_per_100g: 41, fat_per_100g: 15 },
+  { name: 'Funghi', kcal_per_100g: 22, protein_per_100g: 3.1, carbs_per_100g: 3.3, fat_per_100g: 0.3 },
+  { name: 'Radicchio', kcal_per_100g: 13, protein_per_100g: 1, carbs_per_100g: 1.6, fat_per_100g: 0.2 },
+  { name: 'Cavolfiore', kcal_per_100g: 25, protein_per_100g: 1.9, carbs_per_100g: 5, fat_per_100g: 0.3 },
+  // Frutta
+  { name: 'Mela', kcal_per_100g: 52, protein_per_100g: 0.3, carbs_per_100g: 14, fat_per_100g: 0.2 },
+  { name: 'Banana', kcal_per_100g: 89, protein_per_100g: 1.1, carbs_per_100g: 23, fat_per_100g: 0.3 },
+  { name: 'Fragole', kcal_per_100g: 32, protein_per_100g: 0.7, carbs_per_100g: 7.7, fat_per_100g: 0.3 },
+  { name: 'Arancia', kcal_per_100g: 47, protein_per_100g: 0.9, carbs_per_100g: 12, fat_per_100g: 0.1 },
+  { name: 'Pesca', kcal_per_100g: 39, protein_per_100g: 0.9, carbs_per_100g: 9.5, fat_per_100g: 0.3 },
+  { name: 'Kiwi', kcal_per_100g: 61, protein_per_100g: 1.1, carbs_per_100g: 15, fat_per_100g: 0.5 },
+  { name: 'Ananas', kcal_per_100g: 50, protein_per_100g: 0.5, carbs_per_100g: 13, fat_per_100g: 0.1 },
+  { name: 'Uva', kcal_per_100g: 69, protein_per_100g: 0.7, carbs_per_100g: 18, fat_per_100g: 0.2 },
+  { name: 'Mirtilli', kcal_per_100g: 57, protein_per_100g: 0.7, carbs_per_100g: 14, fat_per_100g: 0.3 },
+  { name: 'Avocado', kcal_per_100g: 160, protein_per_100g: 2, carbs_per_100g: 9, fat_per_100g: 15 },
+  // Legumi
+  { name: 'Ceci cotti', kcal_per_100g: 164, protein_per_100g: 9, carbs_per_100g: 27, fat_per_100g: 2.6 },
+  { name: 'Fagioli cotti', kcal_per_100g: 132, protein_per_100g: 8.7, carbs_per_100g: 24, fat_per_100g: 0.5 },
+  { name: 'Lenticchie cotte', kcal_per_100g: 116, protein_per_100g: 9, carbs_per_100g: 20, fat_per_100g: 0.4 },
+  { name: 'Piselli', kcal_per_100g: 81, protein_per_100g: 5.4, carbs_per_100g: 14, fat_per_100g: 0.4 },
+  { name: 'Fave', kcal_per_100g: 72, protein_per_100g: 5.5, carbs_per_100g: 11, fat_per_100g: 0.6 },
+  { name: 'Tofu', kcal_per_100g: 76, protein_per_100g: 8, carbs_per_100g: 1.9, fat_per_100g: 4.8 },
+  { name: 'Edamame', kcal_per_100g: 121, protein_per_100g: 11, carbs_per_100g: 9, fat_per_100g: 5 },
+  // Frutta secca e semi
+  { name: 'Mandorle', kcal_per_100g: 579, protein_per_100g: 21, carbs_per_100g: 22, fat_per_100g: 50 },
+  { name: 'Noci', kcal_per_100g: 654, protein_per_100g: 15, carbs_per_100g: 14, fat_per_100g: 65 },
+  { name: 'Pistacchi', kcal_per_100g: 562, protein_per_100g: 20, carbs_per_100g: 28, fat_per_100g: 45 },
+  { name: 'Anacardi', kcal_per_100g: 553, protein_per_100g: 18, carbs_per_100g: 30, fat_per_100g: 44 },
+  { name: 'Nocciole', kcal_per_100g: 628, protein_per_100g: 15, carbs_per_100g: 17, fat_per_100g: 61 },
+  { name: 'Semi di chia', kcal_per_100g: 486, protein_per_100g: 17, carbs_per_100g: 42, fat_per_100g: 31 },
+  { name: 'Semi di lino', kcal_per_100g: 534, protein_per_100g: 18, carbs_per_100g: 29, fat_per_100g: 42 },
+  // Grassi e condimenti
+  { name: 'Olio extravergine', kcal_per_100g: 884, protein_per_100g: 0, carbs_per_100g: 0, fat_per_100g: 100 },
+  { name: 'Olio di semi', kcal_per_100g: 884, protein_per_100g: 0, carbs_per_100g: 0, fat_per_100g: 100 },
+  { name: 'Miele', kcal_per_100g: 304, protein_per_100g: 0.3, carbs_per_100g: 82, fat_per_100g: 0 },
+  { name: 'Marmellata', kcal_per_100g: 250, protein_per_100g: 0.4, carbs_per_100g: 62, fat_per_100g: 0.1 },
+  { name: 'Nutella', kcal_per_100g: 539, protein_per_100g: 6.3, carbs_per_100g: 57, fat_per_100g: 31 },
+  { name: 'Zucchero', kcal_per_100g: 387, protein_per_100g: 0, carbs_per_100g: 100, fat_per_100g: 0 },
+  // Bevande
+  { name: 'Caffe amaro', kcal_per_100g: 2, protein_per_100g: 0.1, carbs_per_100g: 0, fat_per_100g: 0 },
+  { name: 'The verde', kcal_per_100g: 1, protein_per_100g: 0, carbs_per_100g: 0, fat_per_100g: 0 },
+  { name: 'Birra', kcal_per_100g: 43, protein_per_100g: 0.5, carbs_per_100g: 3.6, fat_per_100g: 0 },
+  { name: 'Vino rosso', kcal_per_100g: 85, protein_per_100g: 0.1, carbs_per_100g: 2.6, fat_per_100g: 0 },
+  { name: 'Vino bianco', kcal_per_100g: 82, protein_per_100g: 0.1, carbs_per_100g: 2.6, fat_per_100g: 0 },
+  { name: 'Coca cola', kcal_per_100g: 42, protein_per_100g: 0, carbs_per_100g: 10.6, fat_per_100g: 0 },
+  { name: 'Succo arancia', kcal_per_100g: 45, protein_per_100g: 0.7, carbs_per_100g: 10.4, fat_per_100g: 0.2 },
 ]
 
 export default function NewPostPage() {
@@ -281,6 +372,12 @@ function MealFlow({
   const [isPrivate, setIsPrivate] = useState(false)
   const [aiAnalyzed, setAiAnalyzed] = useState(false)
   const [aiLoading, setAiLoading] = useState(false)
+  const [customDate, setCustomDate] = useState<string>(() => {
+    // default: adesso in formato datetime-local
+    const now = new Date()
+    const pad = (n: number) => String(n).padStart(2, '0')
+    return now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate()) + 'T' + pad(now.getHours()) + ':' + pad(now.getMinutes())
+  })
 
   const totals = ingredients.reduce(
     (acc, ing) => ({
@@ -341,6 +438,19 @@ function MealFlow({
     onSaving(true)
     onError('')
 
+    // Valida data: non puo essere nel futuro
+    let createdAt: string | undefined
+    if (customDate) {
+      const picked = new Date(customDate)
+      const now = new Date()
+      if (picked.getTime() > now.getTime() + 60000) { // 1 min di tolleranza
+        onError('La data non puo essere nel futuro.')
+        onSaving(false)
+        return
+      }
+      createdAt = picked.toISOString()
+    }
+
     // Inserisci il post e recupera l'id
     const { data: postData, error: insertError } = await supabase
       .from('posts')
@@ -351,6 +461,7 @@ function MealFlow({
         meal_description: caption.trim() || null,
         meal_photo_url: photo,
         meal_type: mealType,
+        ...(createdAt ? { created_at: createdAt } : {}),
       })
       .select('id')
       .single()
@@ -641,7 +752,7 @@ function MealFlow({
         <textarea
           value={caption}
           onChange={e => setCaption(e.target.value)}
-          placeholder="Pranzo domenicale con nonna..."
+          placeholder="Racconta qualcosa del tuo pasto"
           rows={3}
           style={{
             width: '100%',
@@ -740,6 +851,9 @@ function MealFlow({
         </div>
       )}
 
+      {/* DATA/ORA PERSONALIZZATA */}
+      <DateTimePicker value={customDate} onChange={setCustomDate} />
+
       {/* PRIVACY */}
       <PrivacyToggle isPrivate={isPrivate} onChange={setIsPrivate} />
 
@@ -783,6 +897,38 @@ function IngredientRow({
     ingredient.source === 'barcode' ? { text: 'SCAN', color: '#3B82F6', bg: 'rgba(59,130,246,0.12)' } :
     { text: 'MANUAL', color: '#8E8E93', bg: 'rgba(142,142,147,0.15)' }
 
+  // Determine unita' display. Grams is always stored in grams internally.
+  // Se grams >= 1000: mostra come kg
+  // Default: g
+  const unit = ingredient.grams >= 1000 ? 'kg' : 'g'
+  const displayValue = unit === 'kg'
+    ? (ingredient.grams / 1000).toFixed(ingredient.grams % 100 === 0 ? 1 : 2).replace(/\.?0+$/, '')
+    : String(ingredient.grams)
+
+  const handleChange = (raw: string) => {
+    // Accetta numeri e punto/virgola
+    const clean = raw.replace(/[^0-9.,]/g, '').replace(',', '.')
+    const num = parseFloat(clean) || 0
+    if (unit === 'kg') {
+      onUpdateGrams(Math.round(num * 1000))
+    } else {
+      onUpdateGrams(Math.round(num))
+    }
+  }
+
+  const toggleUnit = () => {
+    // Switch solo visuale, manteniamo grams
+    // Lo forziamo cambiando grams: se sotto 1000 e siamo in g, passa a kg aumentando 1000g (=1kg); viceversa
+    // Meglio: cicla g → kg solo se ha senso
+    if (unit === 'g' && ingredient.grams >= 100) {
+      // Forziamo a kg mostrato come decimale (non cambia il valore stored)
+      // non serve fare nulla, basta aggiornare il display toggle
+    }
+  }
+
+  // Calcolo kcal formattati con K/M se serve
+  const kcalDisplay = formatKcalRow(kcal)
+
   return (
     <div
       style={{
@@ -791,7 +937,7 @@ function IngredientRow({
         padding: '10px',
         display: 'flex',
         alignItems: 'center',
-        gap: '10px',
+        gap: '8px',
       }}
     >
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -814,20 +960,20 @@ function IngredientRow({
             {sourceLabel.text}
           </span>
         </div>
-        <p style={{ fontSize: '11px', color: '#8E8E93', margin: 0 }}>
-          {kcal} kcal
-        </p>
+        <p style={{ fontSize: '11px', color: '#8E8E93', margin: 0 }}>{kcalDisplay} kcal</p>
       </div>
-      <div style={{ position: 'relative' }}>
+
+      {/* Input quantita' + unita' */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
         <input
           type="text"
-          inputMode="numeric"
-          value={ingredient.grams}
-          onChange={e => onUpdateGrams(parseInt(e.target.value.replace(/\D/g, '')) || 0)}
+          inputMode="decimal"
+          value={displayValue}
+          onChange={e => handleChange(e.target.value)}
           style={{
-            width: '58px',
-            height: '32px',
-            padding: '0 24px 0 8px',
+            width: '70px',
+            height: '34px',
+            padding: '0 8px',
             background: '#FFF',
             border: 'none',
             borderRadius: '8px',
@@ -839,10 +985,19 @@ function IngredientRow({
             boxSizing: 'border-box',
           }}
         />
-        <span style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', fontSize: '11px', color: '#8E8E93', pointerEvents: 'none' }}>
-          g
+        <span
+          style={{
+            fontSize: '11px',
+            color: '#8E8E93',
+            fontWeight: 600,
+            minWidth: '18px',
+            textAlign: 'left',
+          }}
+        >
+          {unit}
         </span>
       </div>
+
       <button
         onClick={onRemove}
         aria-label="Rimuovi"
@@ -857,6 +1012,7 @@ function IngredientRow({
           alignItems: 'center',
           justifyContent: 'center',
           color: '#FF3B30',
+          flexShrink: 0,
         }}
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -868,6 +1024,14 @@ function IngredientRow({
   )
 }
 
+// Helper: formatta kcal con k/M approssimazioni
+function formatKcalRow(n: number): string {
+  if (n < 1000) return String(n)
+  if (n < 10000) return (n / 1000).toFixed(1).replace('.0', '') + 'k'
+  if (n < 1000000) return Math.round(n / 1000) + 'k'
+  return (n / 1000000).toFixed(1).replace('.0', '') + 'M'
+}
+
 /* ============ ADD INGREDIENT MODAL ============ */
 function AddIngredientModal({
   onClose,
@@ -876,11 +1040,39 @@ function AddIngredientModal({
   onClose: () => void
   onAdd: (food: (typeof FOOD_DB)[0], grams: number) => void
 }) {
+  const [mode, setMode] = useState<'search' | 'manual'>('search')
   const [query, setQuery] = useState('')
   const [selected, setSelected] = useState<(typeof FOOD_DB)[0] | null>(null)
   const [grams, setGrams] = useState('100')
 
-  const filtered = FOOD_DB.filter(f => f.name.toLowerCase().includes(query.toLowerCase())).slice(0, 10)
+  // Manuale
+  const [manualName, setManualName] = useState('')
+  const [manualKcal, setManualKcal] = useState('')
+  const [manualProt, setManualProt] = useState('')
+  const [manualCarbs, setManualCarbs] = useState('')
+  const [manualFat, setManualFat] = useState('')
+  const [manualGrams, setManualGrams] = useState('100')
+
+  const filtered = FOOD_DB.filter(f => f.name.toLowerCase().includes(query.toLowerCase())).slice(0, 15)
+
+  const handleManualSubmit = () => {
+    if (!manualName.trim()) return
+    const food = {
+      name: manualName.trim(),
+      kcal_per_100g: parseFloat(manualKcal) || 0,
+      protein_per_100g: parseFloat(manualProt) || 0,
+      carbs_per_100g: parseFloat(manualCarbs) || 0,
+      fat_per_100g: parseFloat(manualFat) || 0,
+    }
+    const g = parseInt(manualGrams) || 100
+    onAdd(food, g)
+  }
+
+  const handleAddSelected = () => {
+    if (!selected) return
+    const g = parseInt(grams.replace(/[^0-9]/g, '')) || 100
+    onAdd(selected, g)
+  }
 
   return (
     <div
@@ -903,7 +1095,7 @@ function AddIngredientModal({
           maxWidth: '430px',
           borderTopLeftRadius: '20px',
           borderTopRightRadius: '20px',
-          maxHeight: '80vh',
+          maxHeight: '85vh',
           overflowY: 'auto',
           paddingBottom: '24px',
         }}
@@ -926,17 +1118,15 @@ function AddIngredientModal({
           </button>
           <h3 style={{ fontSize: '16px', fontWeight: 700, margin: 0 }}>Aggiungi ingrediente</h3>
           <button
-            onClick={() => {
-              if (selected) onAdd(selected, parseInt(grams) || 100)
-            }}
-            disabled={!selected}
+            onClick={mode === 'search' ? handleAddSelected : handleManualSubmit}
+            disabled={mode === 'search' ? !selected : !manualName.trim()}
             style={{
               background: 'none',
               border: 'none',
-              color: selected ? '#007AFF' : '#C7C7CC',
+              color: (mode === 'search' ? !!selected : !!manualName.trim()) ? '#007AFF' : '#C7C7CC',
               fontSize: '15px',
               fontWeight: 600,
-              cursor: selected ? 'pointer' : 'not-allowed',
+              cursor: (mode === 'search' ? !!selected : !!manualName.trim()) ? 'pointer' : 'not-allowed',
               padding: '8px 0',
             }}
           >
@@ -944,8 +1134,50 @@ function AddIngredientModal({
           </button>
         </div>
 
+        {/* Tab switcher */}
+        {!selected && (
+          <div style={{ padding: '10px 16px 0' }}>
+            <div style={{ background: 'rgba(118,118,128,0.12)', borderRadius: '9px', padding: '2px', display: 'flex' }}>
+              <button
+                onClick={() => setMode('search')}
+                style={{
+                  flex: 1,
+                  padding: '7px',
+                  fontSize: '13px',
+                  fontWeight: mode === 'search' ? 600 : 500,
+                  color: mode === 'search' ? '#000' : '#3C3C43',
+                  background: mode === 'search' ? '#FFF' : 'transparent',
+                  border: 'none',
+                  borderRadius: '7px',
+                  cursor: 'pointer',
+                  boxShadow: mode === 'search' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                }}
+              >
+                Cerca
+              </button>
+              <button
+                onClick={() => setMode('manual')}
+                style={{
+                  flex: 1,
+                  padding: '7px',
+                  fontSize: '13px',
+                  fontWeight: mode === 'manual' ? 600 : 500,
+                  color: mode === 'manual' ? '#000' : '#3C3C43',
+                  background: mode === 'manual' ? '#FFF' : 'transparent',
+                  border: 'none',
+                  borderRadius: '7px',
+                  cursor: 'pointer',
+                  boxShadow: mode === 'manual' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                }}
+              >
+                Manuale
+              </button>
+            </div>
+          </div>
+        )}
+
         <div style={{ padding: '14px 16px' }}>
-          {!selected ? (
+          {mode === 'search' && !selected && (
             <>
               <div style={{ position: 'relative', marginBottom: '14px' }}>
                 <svg
@@ -964,7 +1196,7 @@ function AddIngredientModal({
                   type="text"
                   value={query}
                   onChange={e => setQuery(e.target.value)}
-                  placeholder="Cerca un alimento..."
+                  placeholder="Nome dell alimento da cercare"
                   autoFocus
                   style={{
                     width: '100%',
@@ -1004,18 +1236,39 @@ function AddIngredientModal({
                   </button>
                 ))}
                 {filtered.length === 0 && (
-                  <p style={{ fontSize: '13px', color: '#8E8E93', textAlign: 'center', padding: '20px 0' }}>
-                    Nessun alimento trovato.
-                  </p>
+                  <div style={{ textAlign: 'center', padding: '30px 20px' }}>
+                    <p style={{ fontSize: '13px', color: '#8E8E93', margin: 0 }}>Nessun alimento trovato.</p>
+                    <button
+                      onClick={() => {
+                        setMode('manual')
+                        setManualName(query)
+                      }}
+                      style={{
+                        marginTop: '10px',
+                        padding: '8px 16px',
+                        background: '#7CA982',
+                        color: '#FFF',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontSize: '13px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Aggiungi {query ? '"' + query + '"' : ''} manualmente
+                    </button>
+                  </div>
                 )}
               </div>
             </>
-          ) : (
+          )}
+
+          {mode === 'search' && selected && (
             <div>
               <div style={{ background: '#FFF', borderRadius: '12px', padding: '14px', marginBottom: '14px' }}>
                 <p style={{ fontSize: '15px', fontWeight: 600, color: '#000', margin: 0 }}>{selected.name}</p>
                 <p style={{ fontSize: '12px', color: '#8E8E93', margin: '4px 0 0' }}>
-                  {selected.kcal_per_100g} kcal · P {selected.protein_per_100g}g · C {selected.carbs_per_100g}g · F {selected.fat_per_100g}g (per 100g)
+                  {selected.kcal_per_100g} kcal {'\u00B7'} P {selected.protein_per_100g}g {'\u00B7'} C {selected.carbs_per_100g}g {'\u00B7'} F {selected.fat_per_100g}g (per 100g)
                 </p>
               </div>
               <label style={{ fontSize: '12px', fontWeight: 600, color: '#8E8E93', letterSpacing: '0.3px', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>
@@ -1026,12 +1279,12 @@ function AddIngredientModal({
                   type="text"
                   inputMode="numeric"
                   value={grams}
-                  onChange={e => setGrams(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                  onChange={e => setGrams(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
                   autoFocus
                   style={{
                     width: '100%',
                     height: '44px',
-                    padding: '0 40px 0 14px',
+                    padding: '0 44px 0 14px',
                     background: '#FFF',
                     border: 'none',
                     borderRadius: '10px',
@@ -1042,7 +1295,7 @@ function AddIngredientModal({
                     boxSizing: 'border-box',
                   }}
                 />
-                <span style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', fontSize: '13px', color: '#8E8E93' }}>
+                <span style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', fontSize: '13px', color: '#8E8E93', pointerEvents: 'none' }}>
                   g
                 </span>
               </div>
@@ -1085,8 +1338,64 @@ function AddIngredientModal({
               </button>
             </div>
           )}
+
+          {mode === 'manual' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <ManualField label="Nome alimento" required value={manualName} onChange={setManualName} placeholder="Nome del tuo ingrediente" />
+              <ManualField label="Kcal per 100g" value={manualKcal} onChange={setManualKcal} numeric placeholder="Calorie per 100g (opzionale)" />
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+                <ManualField label="Proteine" value={manualProt} onChange={setManualProt} numeric small placeholder="g" />
+                <ManualField label="Carboidrati" value={manualCarbs} onChange={setManualCarbs} numeric small placeholder="g" />
+                <ManualField label="Grassi" value={manualFat} onChange={setManualFat} numeric small placeholder="g" />
+              </div>
+              <ManualField label="Quantit\u00E0 (grammi)" value={manualGrams} onChange={setManualGrams} numeric placeholder="Quantita in grammi" />
+              <p style={{ fontSize: '11px', color: '#8E8E93', margin: 0, lineHeight: 1.4 }}>
+                I valori nutrizionali sono facoltativi. Se li lasci vuoti, l AI stimer{'\u00E0'} i valori in un secondo momento.
+              </p>
+            </div>
+          )}
         </div>
       </div>
+    </div>
+  )
+}
+
+function ManualField({
+  label, value, onChange, placeholder, numeric, required, small,
+}: {
+  label: string
+  value: string
+  onChange: (v: string) => void
+  placeholder?: string
+  numeric?: boolean
+  required?: boolean
+  small?: boolean
+}) {
+  return (
+    <div>
+      <label style={{ fontSize: '11px', fontWeight: 600, color: '#8E8E93', letterSpacing: '0.3px', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>
+        {label}{required && <span style={{ color: '#FF3B30' }}> *</span>}
+      </label>
+      <input
+        type="text"
+        inputMode={numeric ? 'decimal' : 'text'}
+        value={value}
+        onChange={e => onChange(numeric ? e.target.value.replace(/[^0-9.,]/g, '').replace(',', '.') : e.target.value)}
+        placeholder={placeholder}
+        style={{
+          width: '100%',
+          height: small ? '36px' : '40px',
+          padding: '0 12px',
+          background: '#FFF',
+          border: 'none',
+          borderRadius: '8px',
+          fontSize: '14px',
+          color: '#000',
+          outline: 'none',
+          fontFamily: 'inherit',
+          boxSizing: 'border-box',
+        }}
+      />
     </div>
   )
 }
@@ -1109,11 +1418,18 @@ function WorkoutFlow({
 }) {
   const [source, setSource] = useState<WorkoutSource>('manuale')
   const [workoutType, setWorkoutType] = useState<WorkoutType>('corsa')
+  const [customTypeName, setCustomTypeName] = useState('')
+  const [showMoreTypes, setShowMoreTypes] = useState(false)
   const [durationMin, setDurationMin] = useState('')
   const [distanceKm, setDistanceKm] = useState('')
   const [heartrate, setHeartrate] = useState('')
   const [notes, setNotes] = useState('')
   const [isPrivate, setIsPrivate] = useState(false)
+  const [customDate, setCustomDate] = useState<string>(() => {
+    const now = new Date()
+    const pad = (n: number) => String(n).padStart(2, '0')
+    return now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate()) + 'T' + pad(now.getHours()) + ':' + pad(now.getMinutes())
+  })
 
   // Auto-calcolo velocita media
   const speedKmh =
@@ -1121,16 +1437,39 @@ function WorkoutFlow({
       ? (parseFloat(distanceKm) / (parseFloat(durationMin) / 60)).toFixed(1)
       : ''
 
-  const workoutTypes: { v: WorkoutType; l: string; icon: React.ReactNode }[] = [
+  // Top 8 sport piu praticati in Italia + Altro
+  const primaryTypes: { v: WorkoutType; l: string; icon: React.ReactNode }[] = [
     { v: 'corsa', l: 'Corsa', icon: <IconRun /> },
     { v: 'bici', l: 'Bici', icon: <IconBike /> },
     { v: 'palestra', l: 'Palestra', icon: <IconGym /> },
     { v: 'camminata', l: 'Camminata', icon: <IconWalk /> },
-    { v: 'yoga', l: 'Yoga', icon: <IconYoga /> },
-    { v: 'hiit', l: 'HIIT', icon: <IconHiit /> },
     { v: 'nuoto', l: 'Nuoto', icon: <IconSwim /> },
+    { v: 'calcio', l: 'Calcio', icon: <IconRun /> },
+    { v: 'yoga', l: 'Yoga', icon: <IconYoga /> },
     { v: 'altro', l: 'Altro', icon: <IconDots /> },
   ]
+
+  // Sport secondari, espandibili
+  const secondaryTypes: { v: WorkoutType; l: string }[] = [
+    { v: 'tennis', l: 'Tennis' },
+    { v: 'padel', l: 'Padel' },
+    { v: 'basket', l: 'Basket' },
+    { v: 'pallavolo', l: 'Pallavolo' },
+    { v: 'hiit', l: 'HIIT' },
+    { v: 'pilates', l: 'Pilates' },
+    { v: 'crossfit', l: 'Crossfit' },
+    { v: 'boxe', l: 'Boxe' },
+    { v: 'arti_marziali', l: 'Arti marziali' },
+    { v: 'sci', l: 'Sci' },
+    { v: 'snowboard', l: 'Snowboard' },
+    { v: 'surf', l: 'Surf' },
+    { v: 'arrampicata', l: 'Arrampicata' },
+    { v: 'rugby', l: 'Rugby' },
+    { v: 'danza', l: 'Danza' },
+    { v: 'escursionismo', l: 'Escursionismo' },
+  ]
+
+  const workoutTypes = primaryTypes
 
   const handleSubmit = async () => {
     if (!user) return
@@ -1138,19 +1477,44 @@ function WorkoutFlow({
       onError('Inserisci almeno la durata.')
       return
     }
+    if (workoutType === 'altro' && !customTypeName.trim()) {
+      onError('Specifica il tipo di allenamento.')
+      return
+    }
     onSaving(true)
     onError('')
+
+    // Data custom
+    let createdAt: string | undefined
+    if (customDate) {
+      const picked = new Date(customDate)
+      const now = new Date()
+      if (picked.getTime() > now.getTime() + 60000) {
+        onError('La data non puo essere nel futuro.')
+        onSaving(false)
+        return
+      }
+      createdAt = picked.toISOString()
+    }
+
+    // Nome tipo allenamento
+    const resolvedTypeName = workoutType === 'altro'
+      ? customTypeName.trim()
+      : (primaryTypes.find(w => w.v === workoutType)?.l
+          || secondaryTypes.find(w => w.v === workoutType)?.l
+          || workoutType)
 
     const { error: insertError } = await supabase.from('posts').insert({
       user_id: user!.id,
       type: 'allenamento',
       is_private: isPrivate,
-      workout_type: workoutTypes.find(w => w.v === workoutType)?.l,
+      workout_type: resolvedTypeName,
       workout_duration_min: parseInt(durationMin) || null,
       workout_distance_km: distanceKm ? parseFloat(distanceKm) : null,
       workout_speed_kmh: speedKmh ? parseFloat(speedKmh) : null,
       workout_heartrate: heartrate ? parseInt(heartrate) : null,
       workout_notes: notes || null,
+      ...(createdAt ? { created_at: createdAt } : {}),
     })
 
     if (insertError) {
@@ -1277,7 +1641,7 @@ function WorkoutFlow({
                 marginTop: '10px',
               }}
             >
-              {workoutTypes.map(t => {
+              {primaryTypes.map(t => {
                 const active = workoutType === t.v
                 return (
                   <button
@@ -1302,6 +1666,86 @@ function WorkoutFlow({
                 )
               })}
             </div>
+
+            {/* Se selezionato un sport secondario, mostralo come chip attivo */}
+            {!primaryTypes.find(t => t.v === workoutType) && workoutType !== 'altro' && (
+              <div style={{ marginTop: '10px', padding: '8px 10px', background: 'rgba(124, 169, 130, 0.12)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '13px', fontWeight: 600, color: '#4F7057' }}>
+                  {secondaryTypes.find(t => t.v === workoutType)?.l}
+                </span>
+                <button onClick={() => setWorkoutType('corsa')} style={{ background: 'none', border: 'none', color: '#4F7057', fontSize: '11px', cursor: 'pointer' }}>
+                  Cambia
+                </button>
+              </div>
+            )}
+
+            {/* Free text se selezionato Altro */}
+            {workoutType === 'altro' && (
+              <input
+                type="text"
+                value={customTypeName}
+                onChange={e => setCustomTypeName(e.target.value.slice(0, 40))}
+                placeholder="Scrivi il tipo di allenamento"
+                style={{
+                  width: '100%',
+                  marginTop: '10px',
+                  height: '40px',
+                  padding: '0 12px',
+                  background: '#F2F2F7',
+                  border: '1.5px solid #7CA982',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  color: '#000',
+                  outline: 'none',
+                  fontFamily: 'inherit',
+                  boxSizing: 'border-box',
+                }}
+              />
+            )}
+
+            {/* Toggle altri sport */}
+            <button
+              onClick={() => setShowMoreTypes(!showMoreTypes)}
+              style={{
+                marginTop: '10px',
+                width: '100%',
+                padding: '8px',
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: '12px',
+                color: '#007AFF',
+                fontWeight: 500,
+              }}
+            >
+              {showMoreTypes ? 'Nascondi altri sport' : '+ Altri sport'}
+            </button>
+
+            {showMoreTypes && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px', marginTop: '6px' }}>
+                {secondaryTypes.map(t => {
+                  const active = workoutType === t.v
+                  return (
+                    <button
+                      key={t.v}
+                      onClick={() => setWorkoutType(t.v)}
+                      style={{
+                        padding: '8px 4px',
+                        borderRadius: '8px',
+                        background: active ? 'rgba(124, 169, 130, 0.15)' : '#F2F2F7',
+                        border: active ? '1.5px solid #7CA982' : '1.5px solid transparent',
+                        cursor: 'pointer',
+                        fontSize: '11px',
+                        fontWeight: active ? 700 : 500,
+                        color: active ? '#4F7057' : '#3C3C43',
+                      }}
+                    >
+                      {t.l}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
           </div>
 
           {/* DURATION + DISTANCE */}
@@ -1362,7 +1806,7 @@ function WorkoutFlow({
             <textarea
               value={notes}
               onChange={e => setNotes(e.target.value)}
-              placeholder="Come stai? Sensazioni, obiettivi, record..."
+              placeholder="Aggiungi note sull allenamento (facoltativo)"
               rows={3}
               style={{
                 width: '100%',
@@ -1380,6 +1824,9 @@ function WorkoutFlow({
               }}
             />
           </div>
+
+          {/* DATA/ORA PERSONALIZZATA */}
+          <DateTimePicker value={customDate} onChange={setCustomDate} />
 
           <PrivacyToggle isPrivate={isPrivate} onChange={setIsPrivate} />
 
@@ -1476,6 +1923,57 @@ function MacroBlock({ label, value, unit, color }: { label: string; value: numbe
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: '2px', marginTop: '3px' }}>
         <span style={{ fontSize: '16px', fontWeight: 700, color: '#000' }}>{value}</span>
         {unit && <span style={{ fontSize: '10px', color: '#8E8E93' }}>{unit}</span>}
+      </div>
+    </div>
+  )
+}
+
+function DateTimePicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  // Max = adesso (non permettere date future)
+  const maxDate = (() => {
+    const now = new Date()
+    const pad = (n: number) => String(n).padStart(2, '0')
+    return now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate()) + 'T' + pad(now.getHours()) + ':' + pad(now.getMinutes())
+  })()
+
+  const isToday = (() => {
+    const d = new Date(value)
+    const now = new Date()
+    return d.toDateString() === now.toDateString()
+  })()
+
+  return (
+    <div
+      style={{
+        background: '#FFF',
+        borderRadius: '14px',
+        padding: '12px 16px',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+        <div>
+          <p style={{ fontSize: '14px', fontWeight: 600, color: '#000', margin: 0 }}>Data e ora</p>
+          <p style={{ fontSize: '11px', color: '#8E8E93', margin: '2px 0 0' }}>
+            {isToday ? 'Adesso' : 'Retroattivo'}
+          </p>
+        </div>
+        <input
+          type="datetime-local"
+          value={value}
+          max={maxDate}
+          onChange={e => onChange(e.target.value)}
+          style={{
+            background: '#F2F2F7',
+            border: 'none',
+            borderRadius: '8px',
+            padding: '8px 10px',
+            fontSize: '13px',
+            fontFamily: 'inherit',
+            color: '#000',
+            outline: 'none',
+          }}
+        />
       </div>
     </div>
   )

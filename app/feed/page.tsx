@@ -153,20 +153,20 @@ export default function FeedPage() {
                 <span
                   style={{
                     position: 'absolute',
-                    top: '6px',
-                    right: '6px',
-                    minWidth: '18px',
-                    height: '18px',
-                    borderRadius: '9px',
+                    top: '3px',
+                    left: '3px',
+                    minWidth: '14px',
+                    height: '14px',
+                    borderRadius: '7px',
                     background: '#FF3B30',
                     color: '#FFF',
-                    fontSize: '10px',
+                    fontSize: '9px',
                     fontWeight: 700,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    padding: '0 5px',
-                    border: '2px solid #F2F2F7',
+                    padding: '0 3px',
+                    border: '1.5px solid #F2F2F7',
                     boxSizing: 'content-box',
                   }}
                 >

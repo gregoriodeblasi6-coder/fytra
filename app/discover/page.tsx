@@ -665,7 +665,7 @@ function UserRow({
         </p>
         <p style={{ fontSize: '12px', color: '#8E8E93', margin: '1px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           @{username}
-          {user.goal && <span> {'\u2022'} {goalShort(user.goal)}</span>}
+          {/* Obiettivo nascosto per privacy */}
         </p>
       </div>
       <button
