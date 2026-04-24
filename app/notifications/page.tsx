@@ -24,16 +24,13 @@ type FilterType = 'tutte' | 'social' | 'sistema'
 
 export default function NotificationsPage() {
   const router = useRouter()
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const [filter, setFilter] = useState<FilterType>('tutte')
   const [notifs, setNotifs] = useState<DbNotification[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (!user) {
-      router.push('/login')
-      return
-    }
+    if (!authLoading && !user) { router.push('/login'); return }
     loadNotifications()
   }, [user])
 

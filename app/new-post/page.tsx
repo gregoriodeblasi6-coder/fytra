@@ -48,14 +48,14 @@ const FOOD_DB: Array<Omit<Ingredient, 'id' | 'grams' | 'source'>> = [
 ]
 
 export default function NewPostPage() {
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const router = useRouter()
   const [type, setType] = useState<PostType>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
-    if (!user) router.push('/login')
+    if (!authLoading && !user) router.push('/login')
   }, [user, router])
 
   return (
@@ -425,6 +425,7 @@ function MealFlow({
               id="meal-photo-input"
               type="file"
               accept="image/*"
+              capture="environment"
               style={{ display: 'none' }}
               onChange={async (e) => {
                 const file = e.target.files?.[0]

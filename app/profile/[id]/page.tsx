@@ -27,7 +27,7 @@ type Profile = {
 export default function OtherProfilePage() {
   const router = useRouter()
   const params = useParams()
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const profileId = params?.id as string
 
   const [profile, setProfile] = useState<Profile | null>(null)
@@ -39,10 +39,7 @@ export default function OtherProfilePage() {
   const [commentPostId, setCommentPostId] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!user) {
-      router.push('/login')
-      return
-    }
+    if (!authLoading && !user) { router.push('/login'); return }
     if (profileId === user.id) {
       router.replace('/profile')
       return

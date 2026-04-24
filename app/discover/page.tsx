@@ -33,7 +33,7 @@ type TrendingPost = {
 type TabView = 'suggeriti' | 'trending' | 'challenge'
 
 export default function DiscoverPage() {
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<TabView>('suggeriti')
@@ -45,10 +45,7 @@ export default function DiscoverPage() {
   const [followingIds, setFollowingIds] = useState<Set<string>>(new Set())
 
   useEffect(() => {
-    if (!user) {
-      router.push('/login')
-      return
-    }
+    if (!authLoading && !user) { router.push('/login'); return }
     loadData()
     loadFollowing()
   }, [user])

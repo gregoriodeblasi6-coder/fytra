@@ -33,12 +33,12 @@ type TabView = 'chat' | 'richieste'
 
 export default function ChatListPage() {
   const router = useRouter()
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const [tab, setTab] = useState<TabView>('chat')
   const [query, setQuery] = useState('')
 
   useEffect(() => {
-    if (!user) router.push('/login')
+    if (!authLoading && !user) router.push('/login')
   }, [user, router])
 
   const aiConversation: Conversation = {

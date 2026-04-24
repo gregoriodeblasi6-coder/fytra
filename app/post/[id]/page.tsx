@@ -10,7 +10,7 @@ import CommentsSheet from '@/app/components/CommentsSheet'
 export default function PostDetailPage() {
   const router = useRouter()
   const params = useParams()
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const postId = params?.id as string
 
   const [post, setPost] = useState<PostData | null>(null)
@@ -19,10 +19,7 @@ export default function PostDetailPage() {
   const [showComments, setShowComments] = useState(false)
 
   useEffect(() => {
-    if (!user) {
-      router.push('/login')
-      return
-    }
+    if (!authLoading && !user) { router.push('/login'); return }
     loadPost()
   }, [postId, user])
 

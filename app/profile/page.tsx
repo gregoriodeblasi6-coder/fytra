@@ -34,7 +34,7 @@ type PostSummary = {
 type TabView = 'overview' | 'posts' | 'achievements'
 
 export default function ProfilePage() {
-  const { user, signOut } = useAuth()
+  const { user, signOut, loading: authLoading } = useAuth()
   const router = useRouter()
   const [profile, setProfile] = useState<Profile | null>(null)
   const [posts, setPosts] = useState<PostSummary[]>([])
@@ -47,7 +47,7 @@ export default function ProfilePage() {
   const [editForm, setEditForm] = useState<Partial<Profile>>({})
 
   useEffect(() => {
-    if (!user) return router.push('/login')
+    if (!authLoading && !user) { router.push('/login'); return }
     loadData()
   }, [user])
 
@@ -275,7 +275,7 @@ export default function ProfilePage() {
                 Modifica profilo
               </button>
               <button
-                onClick={() => router.push('/new-post')}
+                onClick={() => router.push('/create')}
                 style={{
                   padding: '9px 20px',
                   borderRadius: '10px',
@@ -711,7 +711,7 @@ function PostsTab({ posts, router }: { posts: PostSummary[]; router: ReturnType<
         <p style={{ fontSize: '15px', fontWeight: 600, color: '#000', margin: 0 }}>Nessun post ancora</p>
         <p style={{ fontSize: '13px', color: '#8E8E93', margin: '4px 0 16px' }}>Inizia a condividere i tuoi progressi</p>
         <button
-          onClick={() => router.push('/new-post')}
+          onClick={() => router.push('/create')}
           style={{
             padding: '10px 24px',
             background: '#7CA982',
