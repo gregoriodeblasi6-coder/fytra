@@ -53,7 +53,30 @@ export default function OtherProfilePage() {
     setLoading(true)
 
     const { data: p } = await supabase.from('profiles').select('*').eq('id', profileId).maybeSingle()
-    if (p) setProfile(p as any)
+    if (p) {
+      // Contatori in tempo reale
+      const { count: followersCount } = await supabase
+        .from('follows')
+        .select('id', { count: 'exact', head: true })
+        .eq('following_id', profileId)
+
+      const { count: followingCount } = await supabase
+        .from('follows')
+        .select('id', { count: 'exact', head: true })
+        .eq('follower_id', profileId)
+
+      const { count: postsCount } = await supabase
+        .from('posts')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', profileId)
+
+      setProfile({
+        ...(p as any),
+        followers_count: followersCount || 0,
+        following_count: followingCount || 0,
+        posts_count: postsCount || 0,
+      })
+    }
 
     const { data: ps } = await supabase
       .from('posts')

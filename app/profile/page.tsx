@@ -75,7 +75,28 @@ export default function ProfilePage() {
 
     const { data: p } = await supabase.from('profiles').select('*').eq('id', user!.id).single()
     if (p) {
-      setProfile(p)
+      // Contatori aggiornati in tempo reale (le colonne profile.*_count possono essere stale)
+      const { count: followersCount } = await supabase
+        .from('follows')
+        .select('id', { count: 'exact', head: true })
+        .eq('following_id', user!.id)
+
+      const { count: followingCount } = await supabase
+        .from('follows')
+        .select('id', { count: 'exact', head: true })
+        .eq('follower_id', user!.id)
+
+      const { count: postsCount } = await supabase
+        .from('posts')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user!.id)
+
+      setProfile({
+        ...p,
+        followers_count: followersCount || 0,
+        following_count: followingCount || 0,
+        posts_count: postsCount || 0,
+      })
       setEditForm(p)
     }
 

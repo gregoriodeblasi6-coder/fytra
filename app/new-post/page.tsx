@@ -405,6 +405,24 @@ function MealFlow({
   }
 
   const handleAddIngredient = (food: (typeof FOOD_DB)[0], grams: number) => {
+    // Check se gia' presente (case-insensitive, trim)
+    const normalizedNew = food.name.trim().toLowerCase()
+    const existing = ingredients.find(i => i.name.trim().toLowerCase() === normalizedNew)
+
+    if (existing) {
+      // Gia' presente: chiedo se l'utente vuole sommare le quantita
+      const confirmed = confirm(
+        'Hai gia aggiunto "' + food.name + '" (' + existing.grams + 'g). Vuoi aggiungere altri ' + grams + 'g per totale ' + (existing.grams + grams) + 'g?'
+      )
+      if (confirmed) {
+        setIngredients(ingredients.map(i =>
+          i.id === existing.id ? { ...i, grams: i.grams + grams } : i
+        ))
+      }
+      setShowAddIngredient(false)
+      return
+    }
+
     setIngredients([
       ...ingredients,
       {
