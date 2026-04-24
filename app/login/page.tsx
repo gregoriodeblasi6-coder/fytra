@@ -37,10 +37,14 @@ export default function LoginPage() {
     setMessage('')
 
     if (isSignUp) {
-      const { error } = await supabase.auth.signUp({ email, password })
+      const { data, error } = await supabase.auth.signUp({ email, password })
       if (error) {
         setError(error.message)
+      } else if (data.session) {
+        // Signup con sessione attiva (email confirmation disabilitata) → onboarding
+        router.push('/onboarding')
       } else {
+        // Signup con email confirmation attiva → messaggio
         setMessage('Controlla la tua email per confermare la registrazione.')
       }
     } else {
@@ -48,7 +52,8 @@ export default function LoginPage() {
       if (error) {
         setError(error.message)
       } else {
-        router.push('/onboarding')
+        // Login: vai al root che decide lui dove mandarti
+        router.push('/')
       }
     }
     setLoading(false)

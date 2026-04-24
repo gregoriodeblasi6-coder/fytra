@@ -1,29 +1,62 @@
 "use client"
 
-import { useAuth } from '@/lib/AuthContext'
-import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/lib/AuthContext'
 
-export default function Home() {
-  const { user, loading } = useAuth()
+export default function RootPage() {
+  const { user, loading: authLoading } = useAuth()
   const router = useRouter()
 
   useEffect(() => {
-    if (!loading) {
-      if (user) {
-        router.push('/feed')
-      } else {
-        router.push('/login')
-      }
+    if (authLoading) return
+
+    if (!user) {
+      router.replace('/login')
+      return
     }
-  }, [user, loading, router])
+
+    // Utente loggato: verifica se ha completato l'onboarding
+    checkProfile()
+  }, [user, authLoading])
+
+  const checkProfile = async () => {
+    if (!user) return
+    const { data } = await supabase
+      .from('profiles')
+      .select('id, username')
+      .eq('id', user.id)
+      .maybeSingle()
+
+    if (data && data.username) {
+      router.replace('/feed')
+    } else {
+      router.replace('/onboarding')
+    }
+  }
 
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="text-center">
-        <h1 className="text-2xl font-bold text-gray-900">FitApp</h1>
-        <p className="text-gray-400 mt-2">Caricamento...</p>
-      </div>
+    <div
+      style={{
+        minHeight: '100vh',
+        background: '#F2F2F7',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <div
+        style={{
+          width: '32px',
+          height: '32px',
+          borderRadius: '50%',
+          border: '2px solid #E5E5EA',
+          borderTopColor: '#7CA982',
+          animation: 'spin 0.8s linear infinite',
+        }}
+      />
+      <style>{'@keyframes spin { to { transform: rotate(360deg); } }'}</style>
     </div>
   )
 }

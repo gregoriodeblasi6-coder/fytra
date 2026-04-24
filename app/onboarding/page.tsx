@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/AuthContext'
 import { useRouter } from 'next/navigation'
@@ -8,11 +8,38 @@ import { useRouter } from 'next/navigation'
 type Step = 0 | 1 | 2 | 3 | 4 | 5 | 6
 
 export default function OnboardingPage() {
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const router = useRouter()
   const [step, setStep] = useState<Step>(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [checkingProfile, setCheckingProfile] = useState(true)
+
+  // Se utente ha gia' completato onboarding, mandalo al feed
+  useEffect(() => {
+    if (authLoading) return
+    if (!user) {
+      router.replace('/login')
+      return
+    }
+    checkIfProfileExists()
+  }, [user, authLoading])
+
+  const checkIfProfileExists = async () => {
+    if (!user) return
+    const { data } = await supabase
+      .from('profiles')
+      .select('id, username')
+      .eq('id', user.id)
+      .maybeSingle()
+
+    if (data && data.username) {
+      // Profilo gia' completo, salta onboarding
+      router.replace('/feed')
+    } else {
+      setCheckingProfile(false)
+    }
+  }
 
   const [form, setForm] = useState({
     username: '',
@@ -35,6 +62,24 @@ export default function OnboardingPage() {
   const update = (field: string, value: string) => {
     setForm(prev => ({ ...prev, [field]: value }))
     setError('')
+  }
+
+  // Per campi multi-valore salvati come stringa CSV
+  const toggleMulti = (field: string, value: string) => {
+    setForm(prev => {
+      const current = (prev[field as keyof typeof prev] as string) || ''
+      const items = current ? current.split(',').filter(Boolean) : []
+      const idx = items.indexOf(value)
+      if (idx >= 0) items.splice(idx, 1)
+      else items.push(value)
+      return { ...prev, [field]: items.join(',') }
+    })
+    setError('')
+  }
+
+  const isChecked = (field: string, value: string): boolean => {
+    const current = (form[field as keyof typeof form] as string) || ''
+    return current.split(',').includes(value)
   }
 
   const totalSteps = 5
@@ -86,6 +131,24 @@ export default function OnboardingPage() {
     }
 
     router.push('/feed')
+  }
+
+  if (checkingProfile) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#F2F2F7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div
+          style={{
+            width: '32px',
+            height: '32px',
+            borderRadius: '50%',
+            border: '2px solid #E5E5EA',
+            borderTopColor: '#7CA982',
+            animation: 'spin 0.8s linear infinite',
+          }}
+        />
+        <style>{'@keyframes spin { to { transform: rotate(360deg); } }'}</style>
+      </div>
+    )
   }
 
   return (
@@ -442,7 +505,7 @@ export default function OnboardingPage() {
           {step === 5 && (
             <StepContent title="Ultimo passo" subtitle="Alimentazione e cosa ti spinge a migliorarti.">
               <div>
-                <label style={labelStyle}>Dieta che segui</label>
+                <label style={labelStyle}>Dieta che segui <span style={{ color: '#C7C7CC', fontWeight: 500, textTransform: 'none', marginLeft: '6px', letterSpacing: 0 }}>selezione multipla</span></label>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px' }}>
                   {[
                     { v: 'onnivoro', l: 'Mangio tutto' },
@@ -456,8 +519,8 @@ export default function OnboardingPage() {
                   ].map(opt => (
                     <MiniPillCard
                       key={opt.v}
-                      active={form.diet_preference === opt.v}
-                      onClick={() => update('diet_preference', opt.v)}
+                      active={isChecked('diet_preference', opt.v)}
+                      onClick={() => toggleMulti('diet_preference', opt.v)}
                       label={opt.l}
                     />
                   ))}
@@ -473,7 +536,7 @@ export default function OnboardingPage() {
               />
 
               <div>
-                <label style={labelStyle}>Cosa ti motiva di pi{'\u00F9'}?</label>
+                <label style={labelStyle}>Cosa ti motiva di pi{'\u00F9'}? <span style={{ color: '#C7C7CC', fontWeight: 500, textTransform: 'none', marginLeft: '6px', letterSpacing: 0 }}>selezione multipla</span></label>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   {[
                     { v: 'estetica', l: 'Vedermi meglio allo specchio' },
@@ -485,8 +548,8 @@ export default function OnboardingPage() {
                   ].map(opt => (
                     <ChoiceRow
                       key={opt.v}
-                      active={form.motivation === opt.v}
-                      onClick={() => update('motivation', opt.v)}
+                      active={isChecked('motivation', opt.v)}
+                      onClick={() => toggleMulti('motivation', opt.v)}
                       label={opt.l}
                       subtitle=""
                     />

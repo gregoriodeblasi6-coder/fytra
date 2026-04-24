@@ -6,8 +6,8 @@ import { AuthProvider } from "@/lib/AuthContext";
 const geist = Geist({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "FitApp - Il tuo coach AI sociale",
-  description: "Condividi pasti e allenamenti con gli amici, ricevi consigli personalizzati dall'AI",
+  title: "Fytra",
+  description: "Fuel . Train . Share",
 };
 
 export default function RootLayout({

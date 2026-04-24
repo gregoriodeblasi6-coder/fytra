@@ -19,6 +19,7 @@ export default function FeedPage() {
   const [unreadNotifs, setUnreadNotifs] = useState(0)
   const [commentPostId, setCommentPostId] = useState<string | null>(null)
   const [followingIds, setFollowingIds] = useState<string[]>([])
+  const [initialLoad, setInitialLoad] = useState(true)
 
   useEffect(() => {
     if (!authLoading && !user) router.push('/login')
@@ -26,21 +27,36 @@ export default function FeedPage() {
 
   useEffect(() => {
     if (user) {
-      loadPosts()
+      loadFollowing().then(ids => {
+        // Al primo caricamento, se l'utente segue qualcuno, default su "Seguiti"
+        if (initialLoad && ids.length > 0) {
+          setFilter('seguiti')
+        }
+        setInitialLoad(false)
+        loadPosts(ids)
+      })
       loadUnreadCount()
-      loadFollowing()
     }
-  }, [user, filter])
+  }, [user])
 
-  const loadFollowing = async () => {
-    if (!user) return
+  useEffect(() => {
+    if (user && !initialLoad) {
+      loadPosts(followingIds)
+    }
+  }, [filter])
+
+  const loadFollowing = async (): Promise<string[]> => {
+    if (!user) return []
     const { data } = await supabase.from('follows').select('following_id').eq('follower_id', user.id)
-    if (data) setFollowingIds(data.map(f => f.following_id))
+    const ids = data ? data.map(f => f.following_id) : []
+    setFollowingIds(ids)
+    return ids
   }
 
-  const loadPosts = async () => {
+  const loadPosts = async (currentFollowingIds?: string[]) => {
     if (!user) return
     setLoading(true)
+    const followIds = currentFollowingIds ?? followingIds
 
     let query = supabase
       .from('posts')
@@ -56,7 +72,7 @@ export default function FeedPage() {
     let filtered = (data as any) || []
 
     if (filter === 'seguiti') {
-      filtered = filtered.filter((p: PostData) => followingIds.includes(p.user_id) || p.user_id === user.id)
+      filtered = filtered.filter((p: PostData) => followIds.includes(p.user_id) || p.user_id === user.id)
     }
 
     setPosts(filtered)
