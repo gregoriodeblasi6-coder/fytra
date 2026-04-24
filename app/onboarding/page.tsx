@@ -106,16 +106,7 @@ export default function OnboardingPage() {
       goal: form.goal || null,
       workout_frequency: parseInt(form.workout_frequency) || 0,
       daily_water_goal_liters: parseFloat(form.daily_water_goal_liters) || 2.5,
-      bio: [
-        form.sex ? 'Sesso: ' + form.sex : '',
-        form.job_type ? 'Lavoro: ' + form.job_type : '',
-        form.diet_preference ? 'Dieta: ' + form.diet_preference : '',
-        form.allergies ? 'Allergie: ' + form.allergies : '',
-        form.sleep_hours ? 'Sonno: ' + form.sleep_hours : '',
-        form.motivation ? 'Motivazione: ' + form.motivation : '',
-      ]
-        .filter(Boolean)
-        .join(' | '),
+      bio: null, // L'utente la editera dal profilo se vuole
     }
 
     const { error: insertError } = await supabase.from('profiles').insert(profileData)

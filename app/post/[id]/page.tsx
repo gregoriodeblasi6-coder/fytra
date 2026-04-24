@@ -139,6 +139,7 @@ export default function PostDetailPage() {
                 currentUserId={user?.id || ''}
                 onCommentClick={() => setShowComments(true)}
                 clickable={false}
+                mealMode="full"
               />
 
               <button

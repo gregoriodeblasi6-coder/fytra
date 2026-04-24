@@ -51,6 +51,24 @@ export default function ProfilePage() {
     loadData()
   }, [user])
 
+  // Ricarica quando la pagina torna visibile (dopo aver navigato altrove e tornato)
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && user) {
+        loadData()
+      }
+    }
+    const handleFocus = () => {
+      if (user) loadData()
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+    window.addEventListener('focus', handleFocus)
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility)
+      window.removeEventListener('focus', handleFocus)
+    }
+  }, [user])
+
   const loadData = async () => {
     if (!user) return
     setLoading(true)
@@ -732,9 +750,10 @@ function PostsTab({ posts, router }: { posts: PostSummary[]; router: ReturnType<
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '4px', paddingBottom: '20px' }}>
       {posts.map(post => {
+        const onClick = () => router.push('/post/' + post.id)
         if (post.type === 'pasto' && post.meal_photo_url) {
           return (
-            <div key={post.id} style={{ aspectRatio: '1', overflow: 'hidden', borderRadius: '4px' }}>
+            <div key={post.id} onClick={onClick} style={{ aspectRatio: '1', overflow: 'hidden', borderRadius: '4px', cursor: 'pointer' }}>
               <img src={post.meal_photo_url} alt="Pasto" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             </div>
           )
@@ -743,6 +762,7 @@ function PostsTab({ posts, router }: { posts: PostSummary[]; router: ReturnType<
           return (
             <div
               key={post.id}
+              onClick={onClick}
               style={{
                 aspectRatio: '1',
                 background: 'linear-gradient(135deg, #7CA982, #5B8C7B)',
@@ -752,6 +772,7 @@ function PostsTab({ posts, router }: { posts: PostSummary[]; router: ReturnType<
                 flexDirection: 'column',
                 justifyContent: 'space-between',
                 color: '#FFF',
+                cursor: 'pointer',
               }}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -772,6 +793,7 @@ function PostsTab({ posts, router }: { posts: PostSummary[]; router: ReturnType<
         return (
           <div
             key={post.id}
+            onClick={onClick}
             style={{
               aspectRatio: '1',
               background: '#F2F2F7',
@@ -779,6 +801,7 @@ function PostsTab({ posts, router }: { posts: PostSummary[]; router: ReturnType<
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
+              cursor: 'pointer',
             }}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8E8E93" strokeWidth="2">

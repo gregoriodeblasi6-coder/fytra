@@ -153,11 +153,11 @@ export default function FeedPage() {
                 <span
                   style={{
                     position: 'absolute',
-                    top: '3px',
-                    left: '3px',
-                    minWidth: '14px',
-                    height: '14px',
-                    borderRadius: '7px',
+                    top: '-2px',
+                    left: '-2px',
+                    width: '16px',
+                    height: '16px',
+                    borderRadius: '50%',
                     background: '#FF3B30',
                     color: '#FFF',
                     fontSize: '9px',
@@ -165,7 +165,7 @@ export default function FeedPage() {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    padding: '0 3px',
+                    padding: 0,
                     border: '1.5px solid #F2F2F7',
                     boxSizing: 'content-box',
                   }}

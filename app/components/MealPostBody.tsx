@@ -15,7 +15,15 @@ type Ingredient = {
   source: string
 }
 
-export default function MealPostBody({ post, mode = 'preview' }: { post: PostData; mode?: 'preview' | 'full' }) {
+export default function MealPostBody({
+  post,
+  mode = 'preview',
+  isOwner = false,
+}: {
+  post: PostData
+  mode?: 'preview' | 'full'
+  isOwner?: boolean
+}) {
   const [ingredients, setIngredients] = useState<Ingredient[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -47,59 +55,42 @@ export default function MealPostBody({ post, mode = 'preview' }: { post: PostDat
     ? post.meal_type.charAt(0).toUpperCase() + post.meal_type.slice(1)
     : null
 
+  /* ===== PREVIEW MODE (feed) ===== */
   if (mode === 'preview') {
+    const previewIngr = ingredients.slice(0, 3)
+    const extraCount = ingredients.length - previewIngr.length
+
     return (
       <div>
         {post.meal_photo_url && (
-          <div style={{ width: '100%', aspectRatio: '4/3', overflow: 'hidden' }}>
+          <div style={{ width: '100%', maxHeight: '500px', overflow: 'hidden', background: '#F2F2F7' }}>
             <img
               src={post.meal_photo_url}
               alt="Pasto"
-              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+              style={{ width: '100%', height: 'auto', display: 'block', maxHeight: '500px', objectFit: 'contain' }}
             />
           </div>
         )}
 
         <div style={{ padding: '10px 14px 8px' }}>
-          {(mealTypeLabel || (ingredients.length > 0 && totals.kcal > 0)) && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: post.meal_description ? '6px' : 0, flexWrap: 'wrap' }}>
-              {mealTypeLabel && (
-                <span
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    padding: '3px 8px',
-                    background: 'rgba(209, 122, 60, 0.12)',
-                    borderRadius: '7px',
-                    fontSize: '11px',
-                    fontWeight: 600,
-                    color: '#B85A1F',
-                  }}
-                >
-                  <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#D17A3C' }} />
-                  {mealTypeLabel}
-                </span>
-              )}
-              {ingredients.length > 0 && totals.kcal > 0 && (
-                <span
-                  style={{
-                    padding: '3px 8px',
-                    background: 'rgba(0, 0, 0, 0.06)',
-                    borderRadius: '7px',
-                    fontSize: '11px',
-                    fontWeight: 600,
-                    color: '#1F2421',
-                  }}
-                >
-                  {formatKcal(totals.kcal)} kcal
-                </span>
-              )}
-              {ingredients.length > 0 && (
-                <span style={{ fontSize: '11px', color: '#8E8E93', fontWeight: 500 }}>
-                  {ingredients.length} {ingredients.length === 1 ? 'ingrediente' : 'ingredienti'}
-                </span>
-              )}
+          {mealTypeLabel && (
+            <div style={{ marginBottom: post.meal_description || ingredients.length > 0 ? '6px' : 0 }}>
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  padding: '3px 9px',
+                  background: 'rgba(209, 122, 60, 0.12)',
+                  borderRadius: '8px',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  color: '#B85A1F',
+                }}
+              >
+                <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#D17A3C' }} />
+                {mealTypeLabel}
+              </span>
             </div>
           )}
 
@@ -108,7 +99,7 @@ export default function MealPostBody({ post, mode = 'preview' }: { post: PostDat
               style={{
                 fontSize: '14px',
                 color: '#000',
-                margin: 0,
+                margin: '0 0 8px',
                 lineHeight: 1.4,
                 whiteSpace: 'pre-wrap',
                 display: '-webkit-box',
@@ -120,19 +111,54 @@ export default function MealPostBody({ post, mode = 'preview' }: { post: PostDat
               {post.meal_description}
             </p>
           )}
+
+          {ingredients.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+              {previewIngr.map(ing => (
+                <span
+                  key={ing.id}
+                  style={{
+                    fontSize: '11px',
+                    padding: '3px 8px',
+                    background: '#F2F2F7',
+                    color: '#3C3C43',
+                    borderRadius: '6px',
+                    fontWeight: 500,
+                  }}
+                >
+                  {ing.name}
+                </span>
+              ))}
+              {extraCount > 0 && (
+                <span
+                  style={{
+                    fontSize: '11px',
+                    padding: '3px 8px',
+                    background: '#F2F2F7',
+                    color: '#8E8E93',
+                    borderRadius: '6px',
+                    fontWeight: 500,
+                  }}
+                >
+                  +{extraCount} altri
+                </span>
+              )}
+            </div>
+          )}
         </div>
       </div>
     )
   }
 
+  /* ===== FULL MODE (pagina dettaglio) ===== */
   return (
     <div>
       {post.meal_photo_url && (
-        <div style={{ width: '100%', aspectRatio: '4/3', overflow: 'hidden' }}>
+        <div style={{ width: '100%', maxHeight: '600px', overflow: 'hidden', background: '#F2F2F7' }}>
           <img
             src={post.meal_photo_url}
             alt="Pasto"
-            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+            style={{ width: '100%', height: 'auto', display: 'block', maxHeight: '600px', objectFit: 'contain' }}
           />
         </div>
       )}
@@ -168,13 +194,13 @@ export default function MealPostBody({ post, mode = 'preview' }: { post: PostDat
             </p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px', marginBottom: '10px' }}>
               {ingredients.map(ing => (
-                <IngredientCard key={ing.id} ingredient={ing} />
+                <IngredientCard key={ing.id} ingredient={ing} showQuantity={isOwner} />
               ))}
             </div>
           </>
         )}
 
-        {ingredients.length > 0 && totals.kcal > 0 && (
+        {isOwner && ingredients.length > 0 && totals.kcal > 0 && (
           <div
             style={{
               background: 'linear-gradient(135deg, #1F2421, #3C3C43)',
@@ -185,7 +211,7 @@ export default function MealPostBody({ post, mode = 'preview' }: { post: PostDat
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
               <p style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.5px', margin: 0, opacity: 0.8 }}>
-                TOTALI STIMATI
+                TOTALI (solo tu)
               </p>
               <p style={{ fontSize: '22px', fontWeight: 800, margin: 0, letterSpacing: '-0.3px' }}>
                 {formatKcal(totals.kcal)} <span style={{ fontSize: '12px', opacity: 0.7, fontWeight: 500 }}>kcal</span>
@@ -203,7 +229,7 @@ export default function MealPostBody({ post, mode = 'preview' }: { post: PostDat
   )
 }
 
-function IngredientCard({ ingredient }: { ingredient: Ingredient }) {
+function IngredientCard({ ingredient, showQuantity }: { ingredient: Ingredient; showQuantity: boolean }) {
   const kcal = Math.round((Number(ingredient.kcal_per_100g) * Number(ingredient.grams)) / 100)
   const color = ingredientColor(ingredient.name)
   const sourceIcon =
@@ -211,20 +237,22 @@ function IngredientCard({ ingredient }: { ingredient: Ingredient }) {
 
   return (
     <div style={{ background: color.bg, borderRadius: '10px', padding: '8px 10px', border: '1px solid ' + color.border, minWidth: 0 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '2px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: showQuantity ? '2px' : 0 }}>
         {sourceIcon && <span style={{ fontSize: '9px' }}>{sourceIcon}</span>}
         <p style={{ fontSize: '12px', fontWeight: 600, color: color.text, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
           {ingredient.name}
         </p>
       </div>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', flexWrap: 'wrap' }}>
-        <span style={{ fontSize: '14px', fontWeight: 700, color: color.text }}>
-          {formatWeight(Number(ingredient.grams))}
-        </span>
-        <span style={{ fontSize: '10px', color: color.text, opacity: 0.75 }}>
-          {formatKcal(kcal)} kcal
-        </span>
-      </div>
+      {showQuantity && (
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: '14px', fontWeight: 700, color: color.text }}>
+            {formatWeight(Number(ingredient.grams), ingredient.name)}
+          </span>
+          <span style={{ fontSize: '10px', color: color.text, opacity: 0.75 }}>
+            {formatKcal(kcal)} kcal
+          </span>
+        </div>
+      )}
     </div>
   )
 }
@@ -254,10 +282,13 @@ export function formatGrams(n: number): string {
   return Math.round(n / 1000) + 'kg'
 }
 
-export function formatWeight(n: number): string {
-  if (n < 1000) return n + 'g'
-  if (n < 10000) return (n / 1000).toFixed(1).replace('.0', '') + 'kg'
-  return Math.round(n / 1000) + 'kg'
+export function formatWeight(n: number, name?: string): string {
+  const isLiquid = name ? /acqua|latte|succo|caff|the|te|birra|vino|olio|cola|bibita/.test(name.toLowerCase()) : false
+  const unit = isLiquid ? 'ml' : 'g'
+  const bigUnit = isLiquid ? 'L' : 'kg'
+  if (n < 1000) return n + unit
+  if (n < 10000) return (n / 1000).toFixed(1).replace('.0', '') + bigUnit
+  return Math.round(n / 1000) + bigUnit
 }
 
 function ingredientColor(name: string): { bg: string; border: string; text: string } {

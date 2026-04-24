@@ -35,17 +35,20 @@ export default function PostCard({
   currentUserId,
   onCommentClick,
   clickable = true,
+  mealMode = 'preview',
 }: {
   post: PostData
   currentUserId: string
   onCommentClick?: () => void
   clickable?: boolean
+  mealMode?: 'preview' | 'full'
 }) {
   const router = useRouter()
   const [liked, setLiked] = useState(false)
   const [likesCount, setLikesCount] = useState(post.likes_count || 0)
   const [likeLoading, setLikeLoading] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
+  const [showLikesList, setShowLikesList] = useState(false)
 
   useEffect(() => {
     if (!currentUserId) return
@@ -190,8 +193,7 @@ export default function PostCard({
         </div>
 
         {/* Tipo badge */}
-        {post.type === 'pasto' && <TypeBadge color="#D17A3C" bg="rgba(209, 122, 60, 0.12)" label="PASTO" />}
-        {post.type === 'allenamento' && <TypeBadge color="#7CA982" bg="rgba(124, 169, 130, 0.15)" label="WORKOUT" />}
+        {/* Tipo specifico mostrato nel body del post, non nell'header */}
 
         {/* Menu */}
         <div style={{ position: 'relative' }}>
@@ -253,7 +255,7 @@ export default function PostCard({
 
       {/* BODY */}
       {post.type === 'pasto' ? (
-        <MealPostBody post={post} mode="preview" />
+        <MealPostBody post={post} mode={mealMode} isOwner={isOwnPost} />
       ) : post.type === 'allenamento' ? (
         <WorkoutPostBody post={post} />
       ) : (
@@ -272,19 +274,47 @@ export default function PostCard({
           borderTop: '0.5px solid rgba(0,0,0,0.06)',
         }}
       >
-        <div style={{ display: 'flex', gap: '4px' }}>
-          {/* Like */}
-          <ActionBtn
+        <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+          {/* Like icon */}
+          <button
             onClick={toggleLike}
-            active={liked}
-            activeColor="#FF3B30"
-            icon={
-              <svg width="22" height="22" viewBox="0 0 24 24" fill={liked ? '#FF3B30' : 'none'} stroke={liked ? '#FF3B30' : '#3C3C43'} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-              </svg>
-            }
-            count={likesCount}
-          />
+            aria-label="Mi piace"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              padding: '6px 8px 6px 10px',
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              borderRadius: '8px',
+            }}
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill={liked ? '#FF3B30' : 'none'} stroke={liked ? '#FF3B30' : '#3C3C43'} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+            </svg>
+          </button>
+
+          {/* Like count cliccabile → apre lista */}
+          {likesCount > 0 && (
+            <button
+              onClick={e => {
+                e.stopPropagation()
+                setShowLikesList(true)
+              }}
+              style={{
+                padding: '6px 6px',
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: '13px',
+                fontWeight: 600,
+                color: liked ? '#FF3B30' : '#3C3C43',
+                marginRight: '6px',
+              }}
+            >
+              {likesCount}
+            </button>
+          )}
 
           {/* Comment */}
           <ActionBtn
@@ -331,7 +361,149 @@ export default function PostCard({
           </span>
         )}
       </div>
+
+      {/* Likes list modal */}
+      {showLikesList && (
+        <LikesListModal
+          postId={post.id}
+          onClose={() => setShowLikesList(false)}
+          onUserClick={userId => {
+            setShowLikesList(false)
+            if (userId === currentUserId) {
+              router.push('/profile')
+            } else {
+              router.push('/profile/' + userId)
+            }
+          }}
+        />
+      )}
     </article>
+  )
+}
+
+/* ============ LIKES LIST MODAL ============ */
+function LikesListModal({
+  postId,
+  onClose,
+  onUserClick,
+}: {
+  postId: string
+  onClose: () => void
+  onUserClick: (userId: string) => void
+}) {
+  const [users, setUsers] = useState<Array<{ id: string; username: string | null; full_name: string | null; avatar_url: string | null }>>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    loadLikers()
+  }, [postId])
+
+  const loadLikers = async () => {
+    const { data } = await supabase
+      .from('likes')
+      .select('profiles!likes_user_id_profiles_fkey(id, username, full_name, avatar_url)')
+      .eq('post_id', postId)
+      .order('created_at', { ascending: false })
+
+    if (data) {
+      const profiles = data
+        .map((r: any) => r.profiles)
+        .filter(Boolean)
+      setUsers(profiles as any)
+    }
+    setLoading(false)
+  }
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0,0,0,0.45)',
+        zIndex: 200,
+        display: 'flex',
+        alignItems: 'flex-end',
+        justifyContent: 'center',
+      }}
+      onClick={onClose}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: '#F2F2F7',
+          width: '100%',
+          maxWidth: '430px',
+          maxHeight: '70vh',
+          borderTopLeftRadius: '20px',
+          borderTopRightRadius: '20px',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        <div style={{ padding: '10px 16px 12px', borderBottom: '0.5px solid rgba(0,0,0,0.08)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+          <div style={{ width: '36px', height: '4px', borderRadius: '2px', background: 'rgba(0,0,0,0.2)' }} />
+          <h3 style={{ fontSize: '16px', fontWeight: 700, margin: 0 }}>
+            Mi piace {users.length > 0 && <span style={{ color: '#8E8E93', fontWeight: 500 }}>({users.length})</span>}
+          </h3>
+        </div>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }}>
+          {loading && (
+            <p style={{ textAlign: 'center', padding: '30px', color: '#8E8E93', fontSize: '13px' }}>Caricamento...</p>
+          )}
+          {!loading && users.length === 0 && (
+            <p style={{ textAlign: 'center', padding: '30px', color: '#8E8E93', fontSize: '13px' }}>Nessun like ancora.</p>
+          )}
+          {!loading && users.map(u => {
+            const username = u.username || 'utente'
+            const avatar = getAvatarColor(username)
+            return (
+              <button
+                key={u.id}
+                onClick={() => onUserClick(u.id)}
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '10px 16px',
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                }}
+              >
+                <div
+                  style={{
+                    width: '40px',
+                    height: '40px',
+                    borderRadius: '50%',
+                    background: u.avatar_url ? 'transparent' : avatar.bg,
+                    color: avatar.text,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '15px',
+                    fontWeight: 700,
+                    overflow: 'hidden',
+                    flexShrink: 0,
+                  }}
+                >
+                  {u.avatar_url ? (
+                    <img src={u.avatar_url} alt={username} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    username[0].toUpperCase()
+                  )}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <p style={{ fontSize: '14px', fontWeight: 600, color: '#000', margin: 0 }}>{u.full_name || username}</p>
+                  <p style={{ fontSize: '12px', color: '#8E8E93', margin: '1px 0 0' }}>@{username}</p>
+                </div>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+    </div>
   )
 }
 

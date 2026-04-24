@@ -969,9 +969,13 @@ function IngredientRow({
           type="text"
           inputMode="decimal"
           value={displayValue}
-          onChange={e => handleChange(e.target.value)}
+          onChange={e => {
+            // Limito max 5 caratteri (fino a 99999g o 99.9kg)
+            if (e.target.value.length > 5) return
+            handleChange(e.target.value)
+          }}
           style={{
-            width: '70px',
+            width: '72px',
             height: '34px',
             padding: '0 8px',
             background: '#FFF',
@@ -983,6 +987,7 @@ function IngredientRow({
             textAlign: 'right',
             outline: 'none',
             boxSizing: 'border-box',
+            fontFamily: 'inherit',
           }}
         />
         <span
@@ -1279,7 +1284,7 @@ function AddIngredientModal({
                   type="text"
                   inputMode="numeric"
                   value={grams}
-                  onChange={e => setGrams(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
+                  onChange={e => setGrams(e.target.value.replace(/[^0-9]/g, '').slice(0, 5))}
                   autoFocus
                   style={{
                     width: '100%',
