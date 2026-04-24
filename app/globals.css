@@ -1,0 +1,58 @@
+/* =============================================
+   FYTRA — aggiunte opzionali per globals.css
+   Incolla queste righe IN FONDO al tuo globals.css
+   se vuoi tipografia serif premium (Fraunces).
+   Il codice funziona anche SENZA queste righe,
+   ricade su Georgia che è una system font.
+   ============================================= */
+
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500&display=swap');
+
+:root {
+  /* Fytra brand palette (accessibili da Tailwind via var() se vuoi) */
+  --fytra-bg: #FAFAF7;
+  --fytra-sage: #7CA982;
+  --fytra-sage-deep: #4F7057;
+  --fytra-copper: #D17A3C;
+  --fytra-amber: #E8A857;
+  --fytra-charcoal: #1F2421;
+  --fytra-text-soft: #6B716D;
+  --fytra-text-muted: #9A9A95;
+  --fytra-border: rgba(31, 36, 33, 0.06);
+
+  /* Typography */
+  --font-serif: 'Fraunces', Georgia, 'Times New Roman', serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* Se vuoi usare Fraunces al posto di Georgia nel feed,
+   cerca 'Georgia, "Times New Roman"' nel page.tsx e sostituiscilo con
+   var(--font-serif) — NON necessario, solo estetica avanzata */
+
+html, body {
+  background: var(--fytra-bg);
+  font-family: var(--font-sans);
+  color: var(--fytra-charcoal);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Subtle scroll behavior */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar — discreto */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(31, 36, 33, 0.12);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(31, 36, 33, 0.2);
+}
