@@ -71,7 +71,7 @@ export default function DiscoverPage() {
 
   const loadFollowing = async () => {
     if (!user) return
-    const { data } = await supabase.from('follows').select('following_id').eq('follower_id', user.id)
+    const { data } = await supabase.from('follows').select('following_id').eq('follower_id', user!.id)
     if (data) setFollowingIds(new Set(data.map(f => f.following_id)))
   }
 
@@ -82,7 +82,7 @@ export default function DiscoverPage() {
     const { data: users } = await supabase
       .from('profiles')
       .select('id, username, full_name, goal, bio, avatar_url, followers_count, posts_count')
-      .neq('id', user.id)
+      .neq('id', user!.id)
       .not('username', 'is', null)
       .order('followers_count', { ascending: false })
       .limit(20)
@@ -111,11 +111,11 @@ export default function DiscoverPage() {
     if (isFollowing) {
       newSet.delete(profileId)
       setFollowingIds(newSet)
-      await supabase.from('follows').delete().eq('follower_id', user.id).eq('following_id', profileId)
+      await supabase.from('follows').delete().eq('follower_id', user!.id).eq('following_id', profileId)
     } else {
       newSet.add(profileId)
       setFollowingIds(newSet)
-      const { error } = await supabase.from('follows').insert({ follower_id: user.id, following_id: profileId })
+      const { error } = await supabase.from('follows').insert({ follower_id: user!.id, following_id: profileId })
       if (error) {
         const rollback = new Set(followingIds)
         rollback.delete(profileId)
@@ -636,7 +636,7 @@ function UserRow({
       }}
     >
       <div
-        onClick={() => router.push('/profile/' + user.id)}
+        onClick={() => router.push('/profile/' + user!.id)}
         style={{
           width: '44px',
           height: '44px',
@@ -659,7 +659,7 @@ function UserRow({
           username[0].toUpperCase()
         )}
       </div>
-      <div style={{ flex: 1, minWidth: 0, cursor: 'pointer' }} onClick={() => router.push('/profile/' + user.id)}>
+      <div style={{ flex: 1, minWidth: 0, cursor: 'pointer' }} onClick={() => router.push('/profile/' + user!.id)}>
         <p style={{ fontSize: '14px', fontWeight: 600, color: '#000', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {user.full_name || username}
         </p>
@@ -669,7 +669,7 @@ function UserRow({
         </p>
       </div>
       <button
-        onClick={() => onToggleFollow(user.id)}
+        onClick={() => onToggleFollow(user!.id)}
         style={{
           padding: '6px 14px',
           background: isFollowing ? '#F2F2F7' : '#7CA982',

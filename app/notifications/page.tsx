@@ -41,7 +41,7 @@ export default function NotificationsPage() {
     const { data } = await supabase
       .from('notifications')
       .select('*, from_user:profiles!notifications_from_user_profiles_fkey(username, full_name, avatar_url)')
-      .eq('user_id', user.id)
+      .eq('user_id', user!.id)
       .order('created_at', { ascending: false })
       .limit(100)
 

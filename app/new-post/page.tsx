@@ -345,7 +345,7 @@ function MealFlow({
     const { data: postData, error: insertError } = await supabase
       .from('posts')
       .insert({
-        user_id: user.id,
+        user_id: user!.id,
         type: 'pasto',
         is_private: isPrivate,
         meal_description: caption.trim() || null,
@@ -432,7 +432,7 @@ function MealFlow({
                 if (!file || !user) return
                 // Upload a Supabase Storage
                 const ext = file.name.split('.').pop() || 'jpg'
-                const path = user.id + '/' + Date.now() + '.' + ext
+                const path = user!.id + '/' + Date.now() + '.' + ext
                 const { error: upErr } = await supabase.storage
                   .from('post-photos')
                   .upload(path, file, { cacheControl: '3600', upsert: false })
@@ -453,7 +453,7 @@ function MealFlow({
                 const file = e.target.files?.[0]
                 if (!file || !user) return
                 const ext = file.name.split('.').pop() || 'jpg'
-                const path = user.id + '/' + Date.now() + '.' + ext
+                const path = user!.id + '/' + Date.now() + '.' + ext
                 const { error: upErr } = await supabase.storage
                   .from('post-photos')
                   .upload(path, file, { cacheControl: '3600', upsert: false })
@@ -1142,7 +1142,7 @@ function WorkoutFlow({
     onError('')
 
     const { error: insertError } = await supabase.from('posts').insert({
-      user_id: user.id,
+      user_id: user!.id,
       type: 'allenamento',
       is_private: isPrivate,
       workout_type: workoutTypes.find(w => w.v === workoutType)?.l,

@@ -55,7 +55,7 @@ export default function ProfilePage() {
     if (!user) return
     setLoading(true)
 
-    const { data: p } = await supabase.from('profiles').select('*').eq('id', user.id).single()
+    const { data: p } = await supabase.from('profiles').select('*').eq('id', user!.id).single()
     if (p) {
       setProfile(p)
       setEditForm(p)
@@ -64,7 +64,7 @@ export default function ProfilePage() {
     const { data: ps } = await supabase
       .from('posts')
       .select('id, type, meal_photo_url, meal_type, workout_type, workout_distance_km, workout_duration_min, created_at')
-      .eq('user_id', user.id)
+      .eq('user_id', user!.id)
       .order('created_at', { ascending: false })
       .limit(50)
     if (ps) setPosts(ps)
@@ -88,7 +88,7 @@ export default function ProfilePage() {
         workout_frequency: editForm.workout_frequency,
         bio: editForm.bio,
       })
-      .eq('id', user.id)
+      .eq('id', user!.id)
 
     if (!error) {
       setProfile({ ...profile, ...editForm } as Profile)

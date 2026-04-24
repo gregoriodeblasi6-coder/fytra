@@ -39,13 +39,14 @@ export default function OtherProfilePage() {
   const [commentPostId, setCommentPostId] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!authLoading && !user) { router.push('/login'); return }
+    if (authLoading) return
+    if (!user) { router.push('/login'); return }
     if (profileId === user.id) {
       router.replace('/profile')
       return
     }
     loadData()
-  }, [profileId, user])
+  }, [profileId, user, authLoading])
 
   const loadData = async () => {
     if (!user) return
@@ -66,7 +67,7 @@ export default function OtherProfilePage() {
     const { data: followCheck } = await supabase
       .from('follows')
       .select('id')
-      .eq('follower_id', user.id)
+      .eq('follower_id', user!.id)
       .eq('following_id', profileId)
       .maybeSingle()
     setIsFollowing(!!followCheck)
@@ -83,7 +84,7 @@ export default function OtherProfilePage() {
 
     if (!wasFollowing) {
       const { error } = await supabase.from('follows').insert({
-        follower_id: user.id,
+        follower_id: user!.id,
         following_id: profile.id,
       })
       if (!error) {
@@ -95,7 +96,7 @@ export default function OtherProfilePage() {
       const { error } = await supabase
         .from('follows')
         .delete()
-        .eq('follower_id', user.id)
+        .eq('follower_id', user!.id)
         .eq('following_id', profile.id)
       if (!error) {
         setProfile({ ...profile, followers_count: Math.max(profile.followers_count - 1, 0) })

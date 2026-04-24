@@ -47,7 +47,7 @@ export default function FeedPage() {
 
   const loadFollowing = async (): Promise<string[]> => {
     if (!user) return []
-    const { data } = await supabase.from('follows').select('following_id').eq('follower_id', user.id)
+    const { data } = await supabase.from('follows').select('following_id').eq('follower_id', user!.id)
     const ids = data ? data.map(f => f.following_id) : []
     setFollowingIds(ids)
     return ids
@@ -72,7 +72,7 @@ export default function FeedPage() {
     let filtered = (data as any) || []
 
     if (filter === 'seguiti') {
-      filtered = filtered.filter((p: PostData) => followIds.includes(p.user_id) || p.user_id === user.id)
+      filtered = filtered.filter((p: PostData) => followIds.includes(p.user_id) || p.user_id === user!.id)
     }
 
     setPosts(filtered)
@@ -84,7 +84,7 @@ export default function FeedPage() {
     const { count } = await supabase
       .from('notifications')
       .select('id', { count: 'exact', head: true })
-      .eq('user_id', user.id)
+      .eq('user_id', user!.id)
       .eq('read', false)
     setUnreadNotifs(count || 0)
   }
