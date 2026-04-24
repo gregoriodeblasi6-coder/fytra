@@ -201,30 +201,139 @@ export default function MealPostBody({
         )}
 
         {isOwner && ingredients.length > 0 && totals.kcal > 0 && (
-          <div
-            style={{
-              background: 'linear-gradient(135deg, #1F2421, #3C3C43)',
-              borderRadius: '12px',
-              padding: '12px',
-              color: '#FFF',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-              <p style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.5px', margin: 0, opacity: 0.8 }}>
-                TOTALI (solo tu)
-              </p>
-              <p style={{ fontSize: '22px', fontWeight: 800, margin: 0, letterSpacing: '-0.3px' }}>
-                {formatKcal(totals.kcal)} <span style={{ fontSize: '12px', opacity: 0.7, fontWeight: 500 }}>kcal</span>
-              </p>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
-              <MacroMiniBar label="PROT" value={formatGrams(totals.protein)} color="#7CA982" />
-              <MacroMiniBar label="CARB" value={formatGrams(totals.carbs)} color="#D17A3C" />
-              <MacroMiniBar label="GRASSI" value={formatGrams(totals.fat)} color="#3B82F6" />
-            </div>
-          </div>
+          <MacroDonut
+            kcal={totals.kcal}
+            protein={totals.protein}
+            carbs={totals.carbs}
+            fat={totals.fat}
+          />
         )}
       </div>
+    </div>
+  )
+}
+
+/* ============ MACRO DONUT CHART ============ */
+function MacroDonut({ kcal, protein, carbs, fat }: { kcal: number; protein: number; carbs: number; fat: number }) {
+  // Calorie da ciascun macro
+  const protKcal = protein * 4
+  const carbKcal = carbs * 4
+  const fatKcal = fat * 9
+  const totalMacroKcal = protKcal + carbKcal + fatKcal || 1
+
+  const protPct = (protKcal / totalMacroKcal) * 100
+  const carbPct = (carbKcal / totalMacroKcal) * 100
+  const fatPct = (fatKcal / totalMacroKcal) * 100
+
+  // SVG donut: circumference 251.2 (r=40)
+  const r = 40
+  const c = 2 * Math.PI * r
+
+  // Lunghezze archi in base alle %
+  const protArc = (protPct / 100) * c
+  const carbArc = (carbPct / 100) * c
+  const fatArc = (fatPct / 100) * c
+
+  return (
+    <div
+      style={{
+        background: 'linear-gradient(135deg, #1F2421, #3C3C43)',
+        borderRadius: '14px',
+        padding: '16px',
+        color: '#FFF',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+        <p style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.5px', margin: 0, opacity: 0.8 }}>
+          TOTALI (solo tu)
+        </p>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        {/* Donut chart */}
+        <div style={{ position: 'relative', width: '110px', height: '110px', flexShrink: 0 }}>
+          <svg width="110" height="110" viewBox="0 0 100 100" style={{ transform: 'rotate(-90deg)' }}>
+            {/* Base circle background */}
+            <circle cx="50" cy="50" r={r} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="14" />
+
+            {/* Protein arc */}
+            <circle
+              cx="50"
+              cy="50"
+              r={r}
+              fill="none"
+              stroke="#7CA982"
+              strokeWidth="14"
+              strokeDasharray={protArc + ' ' + c}
+              strokeDashoffset="0"
+              strokeLinecap="butt"
+            />
+            {/* Carbs arc */}
+            <circle
+              cx="50"
+              cy="50"
+              r={r}
+              fill="none"
+              stroke="#D17A3C"
+              strokeWidth="14"
+              strokeDasharray={carbArc + ' ' + c}
+              strokeDashoffset={-protArc}
+              strokeLinecap="butt"
+            />
+            {/* Fat arc */}
+            <circle
+              cx="50"
+              cy="50"
+              r={r}
+              fill="none"
+              stroke="#3B82F6"
+              strokeWidth="14"
+              strokeDasharray={fatArc + ' ' + c}
+              strokeDashoffset={-(protArc + carbArc)}
+              strokeLinecap="butt"
+            />
+          </svg>
+
+          {/* Numero calorie al centro */}
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <p style={{ fontSize: '20px', fontWeight: 800, margin: 0, letterSpacing: '-0.3px' }}>
+              {formatKcal(kcal)}
+            </p>
+            <p style={{ fontSize: '9px', opacity: 0.6, fontWeight: 600, margin: 0, letterSpacing: '0.3px' }}>
+              KCAL
+            </p>
+          </div>
+        </div>
+
+        {/* Legenda macro */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <MacroLegendRow color="#7CA982" label="Proteine" value={formatGrams(protein)} pct={Math.round(protPct)} />
+          <MacroLegendRow color="#D17A3C" label="Carboidrati" value={formatGrams(carbs)} pct={Math.round(carbPct)} />
+          <MacroLegendRow color="#3B82F6" label="Grassi" value={formatGrams(fat)} pct={Math.round(fatPct)} />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function MacroLegendRow({ color, label, value, pct }: { color: string; label: string; value: string; pct: number }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <span style={{ width: '10px', height: '10px', borderRadius: '3px', background: color, flexShrink: 0 }} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <p style={{ fontSize: '11px', color: '#FFF', opacity: 0.85, margin: 0, fontWeight: 500 }}>{label}</p>
+      </div>
+      <p style={{ fontSize: '13px', fontWeight: 700, color: '#FFF', margin: 0 }}>{value}</p>
+      <p style={{ fontSize: '10px', opacity: 0.55, margin: 0, minWidth: '28px', textAlign: 'right' }}>{pct}%</p>
     </div>
   )
 }

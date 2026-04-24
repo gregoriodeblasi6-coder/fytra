@@ -21,6 +21,37 @@ type Ingredient = {
   source: 'ai' | 'manual' | 'barcode'
 }
 
+// Categoria dedotta dal nome — usata per raggruppare nella modale ricerca
+function getCategory(name: string): string {
+  const lower = name.toLowerCase()
+  if (/pollo|manzo|vitello|maiale|tacchino|bresaola|prosciutto|bacon|salame|mortadell|carne/.test(lower)) return 'Carni e salumi'
+  if (/salmone|tonno|orata|branzino|merluzzo|gamberi|calamari|acciugh|pesce/.test(lower)) return 'Pesce'
+  if (/uov[ao]|albume|latte|yogurt|formaggi|ricott|mozzarel|parmig|grana|stracchin|feta|burro/.test(lower)) return 'Uova e latticini'
+  if (/riso|pasta|pane|avena|orzo|farro|quinoa|pizza|cous|cereali|focaccia|piadin|crackers|gnocchi/.test(lower)) return 'Cereali e derivati'
+  if (/insalata|spinaci|broccoli|zucchin|verdur|pomodor|carote|cavol|lattug|rucola|cetriol|melanzan|peperon|radicchi|asparag|cipolla|funghi|patate/.test(lower)) return 'Verdure'
+  if (/mel[ae]|banan|fragol|frutt|pesch|ananas|uva|arancia|kiwi|mirtill|avocad|ciliegi|albicoc|lampon/.test(lower)) return 'Frutta'
+  if (/ceci|fagiol|lenticchi|piseli|fave|tofu|edamame|tempeh|legumi/.test(lower)) return 'Legumi'
+  if (/mandorl|noci|pistacch|anacard|nocciol|semi/.test(lower)) return 'Frutta secca'
+  if (/oli|miele|marmellata|nutella|zucchero/.test(lower)) return 'Condimenti e dolci'
+  if (/caff|the|te|birra|vino|cola|bibita|succo/.test(lower)) return 'Bevande'
+  return 'Altro'
+}
+
+// Ordine visualizzazione categorie
+const CATEGORY_ORDER = [
+  'Cereali e derivati',
+  'Carni e salumi',
+  'Pesce',
+  'Uova e latticini',
+  'Verdure',
+  'Legumi',
+  'Frutta',
+  'Frutta secca',
+  'Condimenti e dolci',
+  'Bevande',
+  'Altro',
+]
+
 // Mini database alimenti (valori medi USDA/CREA per 100g)
 const FOOD_DB: Array<Omit<Ingredient, 'id' | 'grams' | 'source'>> = [
   // Cereali e derivati
@@ -405,6 +436,17 @@ function MealFlow({
   }
 
   const handleAddIngredient = (food: (typeof FOOD_DB)[0], grams: number) => {
+    // Salva in localStorage come recente (max 10, no duplicati)
+    try {
+      if (typeof window !== 'undefined') {
+        const stored = localStorage.getItem('fytra_recent_ingredients')
+        const list: string[] = stored ? JSON.parse(stored) : []
+        const filtered = list.filter(n => n !== food.name)
+        filtered.unshift(food.name)
+        localStorage.setItem('fytra_recent_ingredients', JSON.stringify(filtered.slice(0, 10)))
+      }
+    } catch {}
+
     // Check se gia' presente (case-insensitive, trim)
     const normalizedNew = food.name.trim().toLowerCase()
     const existing = ingredients.find(i => i.name.trim().toLowerCase() === normalizedNew)
@@ -1076,7 +1118,37 @@ function AddIngredientModal({
   const [manualFat, setManualFat] = useState('')
   const [manualGrams, setManualGrams] = useState('100')
 
-  const filtered = FOOD_DB.filter(f => f.name.toLowerCase().includes(query.toLowerCase())).slice(0, 15)
+  // Se c'e' query, mostra risultati filtrati piatti. Se no, raggruppa per categoria.
+  const queryLower = query.trim().toLowerCase()
+  const filtered = queryLower
+    ? FOOD_DB.filter(f => f.name.toLowerCase().includes(queryLower)).slice(0, 20)
+    : []
+
+  // Ingredienti recenti dal localStorage (max 5)
+  const recentIngredients: Array<(typeof FOOD_DB)[0]> = (() => {
+    if (typeof window === 'undefined' || queryLower) return []
+    try {
+      const stored = localStorage.getItem('fytra_recent_ingredients')
+      if (!stored) return []
+      const names: string[] = JSON.parse(stored)
+      return names
+        .map(n => FOOD_DB.find(f => f.name === n))
+        .filter(Boolean)
+        .slice(0, 5) as Array<(typeof FOOD_DB)[0]>
+    } catch {
+      return []
+    }
+  })()
+
+  // Raggruppa tutti gli alimenti per categoria
+  const grouped: Record<string, Array<(typeof FOOD_DB)[0]>> = {}
+  if (!queryLower) {
+    FOOD_DB.forEach(f => {
+      const cat = getCategory(f.name)
+      if (!grouped[cat]) grouped[cat] = []
+      grouped[cat].push(f)
+    })
+  }
 
   const handleManualSubmit = () => {
     if (!manualName.trim()) return
@@ -1238,7 +1310,8 @@ function AddIngredientModal({
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                {filtered.map(f => (
+                {/* Se c'e' query: risultati piatti */}
+                {queryLower && filtered.map(f => (
                   <button
                     key={f.name}
                     onClick={() => setSelected(f)}
@@ -1258,7 +1331,71 @@ function AddIngredientModal({
                     <span style={{ fontSize: '12px', color: '#8E8E93' }}>{f.kcal_per_100g} kcal/100g</span>
                   </button>
                 ))}
-                {filtered.length === 0 && (
+
+                {/* Se no query: recenti in alto + raggruppati per categoria */}
+                {!queryLower && recentIngredients.length > 0 && (
+                  <>
+                    <p style={{ fontSize: '11px', fontWeight: 700, color: '#8E8E93', letterSpacing: '0.5px', margin: '6px 4px 2px', textTransform: 'uppercase' }}>
+                      Usati di recente
+                    </p>
+                    {recentIngredients.map(f => (
+                      <button
+                        key={'recent-' + f.name}
+                        onClick={() => setSelected(f)}
+                        style={{
+                          background: 'rgba(124, 169, 130, 0.08)',
+                          border: 'none',
+                          borderRadius: '10px',
+                          padding: '10px 12px',
+                          textAlign: 'left',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <span style={{ fontSize: '14px', color: '#000', fontWeight: 500 }}>{f.name}</span>
+                        <span style={{ fontSize: '12px', color: '#4F7057', fontWeight: 600 }}>{f.kcal_per_100g} kcal/100g</span>
+                      </button>
+                    ))}
+                  </>
+                )}
+
+                {!queryLower && CATEGORY_ORDER.map(cat => {
+                  const items = grouped[cat]
+                  if (!items || items.length === 0) return null
+                  return (
+                    <div key={cat}>
+                      <p style={{ fontSize: '11px', fontWeight: 700, color: '#8E8E93', letterSpacing: '0.5px', margin: '10px 4px 4px', textTransform: 'uppercase' }}>
+                        {cat}
+                      </p>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        {items.map(f => (
+                          <button
+                            key={f.name}
+                            onClick={() => setSelected(f)}
+                            style={{
+                              background: '#FFF',
+                              border: 'none',
+                              borderRadius: '10px',
+                              padding: '10px 12px',
+                              textAlign: 'left',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                            }}
+                          >
+                            <span style={{ fontSize: '14px', color: '#000', fontWeight: 500 }}>{f.name}</span>
+                            <span style={{ fontSize: '12px', color: '#8E8E93' }}>{f.kcal_per_100g} kcal/100g</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })}
+
+                {queryLower && filtered.length === 0 && (
                   <div style={{ textAlign: 'center', padding: '30px 20px' }}>
                     <p style={{ fontSize: '13px', color: '#8E8E93', margin: 0 }}>Nessun alimento trovato.</p>
                     <button

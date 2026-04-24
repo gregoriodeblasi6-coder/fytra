@@ -245,6 +245,11 @@ export default function PostCard({
                   alert('Link copiato')
                   setShowMenu(false)
                 }} />
+                {isOwnPost && <MenuItem label="Modifica post" onClick={e => {
+                  e.stopPropagation()
+                  setShowMenu(false)
+                  router.push('/post/' + post.id + '/edit')
+                }} />}
                 {isOwnPost && <MenuItem label="Elimina post" onClick={deletePost} danger />}
                 {!isOwnPost && <MenuItem label="Segnala" onClick={e => { e.stopPropagation(); alert('Grazie, ce ne occuperemo.'); setShowMenu(false) }} />}
               </div>
