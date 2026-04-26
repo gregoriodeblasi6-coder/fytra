@@ -18,6 +18,11 @@ type Profile = {
   workout_frequency: number | null
   daily_water_goal_liters: number | null
   bio: string | null
+  followers_count: number | null
+  following_count: number | null
+  posts_count: number | null
+  avatar_url?: string | null
+  is_private?: boolean | null
 }
 
 type PostSummary = {
