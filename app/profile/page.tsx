@@ -69,24 +69,19 @@ export default function ProfilePage() {
     }
   }, [user])
 
-  const [debugInfo, setDebugInfo] = useState<string>('')
-
   const loadData = async () => {
-    if (!user) {
-      setDebugInfo('user non disponibile')
-      return
-    }
+    if (!user) return
     setLoading(true)
 
     const { data: p } = await supabase.from('profiles').select('*').eq('id', user!.id).single()
     if (p) {
       // Contatori aggiornati in tempo reale (le colonne profile.*_count possono essere stale)
-      const { count: followersCount, error: errF1 } = await supabase
+      const { count: followersCount } = await supabase
         .from('follows')
         .select('id', { count: 'exact', head: true })
         .eq('following_id', user!.id)
 
-      const { count: followingCount, error: errF2 } = await supabase
+      const { count: followingCount } = await supabase
         .from('follows')
         .select('id', { count: 'exact', head: true })
         .eq('follower_id', user!.id)
@@ -95,16 +90,6 @@ export default function ProfilePage() {
         .from('posts')
         .select('id', { count: 'exact', head: true })
         .eq('user_id', user!.id)
-
-      // DEBUG temporaneo
-      setDebugInfo(
-        'user.id=' + user.id.slice(0, 8) +
-        ' | followers=' + followersCount +
-        ' | following=' + followingCount +
-        ' | posts=' + postsCount +
-        (errF1 ? ' | err1=' + errF1.message : '') +
-        (errF2 ? ' | err2=' + errF2.message : '')
-      )
 
       setProfile({
         ...p,
@@ -239,19 +224,6 @@ export default function ProfilePage() {
         </header>
 
         <main style={{ paddingBottom: '100px' }}>
-          {/* DEBUG temporaneo - rimuovere dopo */}
-          {debugInfo && (
-            <div style={{
-              background: 'rgba(124, 169, 130, 0.15)',
-              padding: '8px 16px',
-              fontSize: '11px',
-              fontFamily: 'monospace',
-              color: '#3F6B47',
-              wordBreak: 'break-all',
-            }}>
-              DEBUG: {debugInfo}
-            </div>
-          )}
           {/* AVATAR + NAME + BIO BLOCK */}
           <div style={{ padding: '20px 20px 16px', textAlign: 'center' }}>
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '14px' }}>
@@ -374,11 +346,11 @@ export default function ProfilePage() {
               boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
             }}
           >
-            <SocialStat value={totalPosts} label="Post" />
+            <SocialStat value={profile?.posts_count || totalPosts} label="Post" />
             <Divider />
-            <SocialStat value={0} label="Follower" />
+            <SocialStat value={profile?.followers_count || 0} label="Follower" />
             <Divider />
-            <SocialStat value={0} label="Seguiti" />
+            <SocialStat value={profile?.following_count || 0} label="Seguiti" />
           </div>
 
           {/* TAB SWITCHER */}
