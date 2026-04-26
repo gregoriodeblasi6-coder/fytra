@@ -29,11 +29,13 @@ export default function FeedPage() {
     if (user) {
       loadFollowing().then(ids => {
         // Al primo caricamento, se l'utente segue qualcuno, default su "Seguiti"
+        const wantedFilter: FilterType = (initialLoad && ids.length > 0) ? 'seguiti' : filter
         if (initialLoad && ids.length > 0) {
           setFilter('seguiti')
         }
         setInitialLoad(false)
-        loadPosts(ids)
+        // Passo esplicitamente il filter desiderato per evitare race con setState async
+        loadPosts(ids, wantedFilter)
       })
       loadUnreadCount()
     }
@@ -41,7 +43,7 @@ export default function FeedPage() {
 
   useEffect(() => {
     if (user && !initialLoad) {
-      loadPosts(followingIds)
+      loadPosts(followingIds, filter)
     }
   }, [filter])
 
@@ -53,10 +55,11 @@ export default function FeedPage() {
     return ids
   }
 
-  const loadPosts = async (currentFollowingIds?: string[]) => {
+  const loadPosts = async (currentFollowingIds?: string[], currentFilter?: FilterType) => {
     if (!user) return
     setLoading(true)
     const followIds = currentFollowingIds ?? followingIds
+    const f = currentFilter ?? filter
 
     let query = supabase
       .from('posts')
@@ -65,13 +68,13 @@ export default function FeedPage() {
       .order('created_at', { ascending: false })
       .limit(50)
 
-    if (filter === 'pasti') query = query.eq('type', 'pasto')
-    if (filter === 'allenamenti') query = query.eq('type', 'allenamento')
+    if (f === 'pasti') query = query.eq('type', 'pasto')
+    if (f === 'allenamenti') query = query.eq('type', 'allenamento')
 
     const { data } = await query
     let filtered = (data as any) || []
 
-    if (filter === 'seguiti') {
+    if (f === 'seguiti') {
       filtered = filtered.filter((p: PostData) => followIds.includes(p.user_id) || p.user_id === user!.id)
     }
 

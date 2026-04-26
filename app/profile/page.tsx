@@ -48,6 +48,7 @@ export default function ProfilePage() {
   const [editMode, setEditMode] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [userListMode, setUserListMode] = useState<null | 'followers' | 'following'>(null)
 
   const [editForm, setEditForm] = useState<Partial<Profile>>({})
 
@@ -365,7 +366,7 @@ export default function ProfilePage() {
                 Condividi
               </button>
               <button
-                onClick={() => router.push('/create')}
+                onClick={() => router.push('/new-post')}
                 style={{
                   padding: '9px 16px',
                   borderRadius: '10px',
@@ -399,9 +400,17 @@ export default function ProfilePage() {
           >
             <SocialStat value={profile?.posts_count || totalPosts} label="Post" />
             <Divider />
-            <SocialStat value={profile?.followers_count || 0} label="Follower" />
+            <SocialStat
+              value={profile?.followers_count || 0}
+              label="Follower"
+              onClick={() => (profile?.followers_count || 0) > 0 && setUserListMode('followers')}
+            />
             <Divider />
-            <SocialStat value={profile?.following_count || 0} label="Seguiti" />
+            <SocialStat
+              value={profile?.following_count || 0}
+              label="Seguiti"
+              onClick={() => (profile?.following_count || 0) > 0 && setUserListMode('following')}
+            />
           </div>
 
           {/* TAB SWITCHER */}
@@ -490,7 +499,204 @@ export default function ProfilePage() {
         />
       )}
 
+      {/* FOLLOWER/SEGUITI LIST MODAL */}
+      {userListMode && user && (
+        <UserListModal
+          mode={userListMode}
+          targetUserId={user.id}
+          currentUserId={user.id}
+          onClose={() => setUserListMode(null)}
+          onUserClick={uid => {
+            setUserListMode(null)
+            if (uid !== user.id) router.push('/profile/' + uid)
+          }}
+        />
+      )}
+
       <BottomNav />
+    </div>
+  )
+}
+
+/* ============ USER LIST MODAL (followers / following) ============ */
+function UserListModal({
+  mode,
+  targetUserId,
+  currentUserId,
+  onClose,
+  onUserClick,
+}: {
+  mode: 'followers' | 'following'
+  targetUserId: string
+  currentUserId: string
+  onClose: () => void
+  onUserClick: (userId: string) => void
+}) {
+  const [users, setUsers] = useState<Array<{ id: string; username: string | null; full_name: string | null; avatar_url: string | null }>>([])
+  const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
+
+  useEffect(() => {
+    loadUsers()
+  }, [mode, targetUserId])
+
+  const loadUsers = async () => {
+    setLoading(true)
+
+    if (mode === 'followers') {
+      // Persone che seguono targetUserId
+      const { data } = await supabase
+        .from('follows')
+        .select('profiles!follows_follower_profiles_fkey(id, username, full_name, avatar_url)')
+        .eq('following_id', targetUserId)
+        .order('created_at', { ascending: false })
+
+      if (data) {
+        const profiles = data.map((r: any) => r.profiles).filter(Boolean)
+        setUsers(profiles as any)
+      }
+    } else {
+      // Persone seguite da targetUserId
+      const { data } = await supabase
+        .from('follows')
+        .select('profiles!follows_following_profiles_fkey(id, username, full_name, avatar_url)')
+        .eq('follower_id', targetUserId)
+        .order('created_at', { ascending: false })
+
+      if (data) {
+        const profiles = data.map((r: any) => r.profiles).filter(Boolean)
+        setUsers(profiles as any)
+      }
+    }
+    setLoading(false)
+  }
+
+  const filtered = search.trim()
+    ? users.filter(u => {
+        const s = search.trim().toLowerCase()
+        return (u.username || '').toLowerCase().includes(s) || (u.full_name || '').toLowerCase().includes(s)
+      })
+    : users
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0,0,0,0.45)',
+        zIndex: 200,
+        display: 'flex',
+        alignItems: 'flex-end',
+        justifyContent: 'center',
+      }}
+      onClick={onClose}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: '#F2F2F7',
+          width: '100%',
+          maxWidth: '430px',
+          maxHeight: '80vh',
+          borderTopLeftRadius: '20px',
+          borderTopRightRadius: '20px',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        <div style={{ padding: '10px 16px 12px', borderBottom: '0.5px solid rgba(0,0,0,0.08)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+          <div style={{ width: '36px', height: '4px', borderRadius: '2px', background: 'rgba(0,0,0,0.2)' }} />
+          <h3 style={{ fontSize: '16px', fontWeight: 700, margin: 0 }}>
+            {mode === 'followers' ? 'Follower' : 'Seguiti'}
+            {users.length > 0 && <span style={{ color: '#8E8E93', fontWeight: 500 }}> ({users.length})</span>}
+          </h3>
+        </div>
+
+        {users.length > 5 && (
+          <div style={{ padding: '10px 16px 0' }}>
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Cerca per nome o username"
+              style={{
+                width: '100%',
+                height: '38px',
+                padding: '0 12px',
+                background: '#FFF',
+                border: 'none',
+                borderRadius: '10px',
+                fontSize: '14px',
+                outline: 'none',
+                fontFamily: 'inherit',
+                boxSizing: 'border-box',
+              }}
+            />
+          </div>
+        )}
+
+        <div style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }}>
+          {loading && (
+            <p style={{ textAlign: 'center', padding: '30px', color: '#8E8E93', fontSize: '13px' }}>Caricamento...</p>
+          )}
+          {!loading && filtered.length === 0 && (
+            <p style={{ textAlign: 'center', padding: '30px', color: '#8E8E93', fontSize: '13px' }}>
+              {search ? 'Nessun risultato.' : (mode === 'followers' ? 'Nessun follower ancora.' : 'Non segui ancora nessuno.')}
+            </p>
+          )}
+          {!loading && filtered.map(u => {
+            const username = u.username || 'utente'
+            const avatar = getAvatarColor(username)
+            return (
+              <button
+                key={u.id}
+                onClick={() => onUserClick(u.id)}
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '10px 16px',
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                }}
+              >
+                <div
+                  style={{
+                    width: '40px',
+                    height: '40px',
+                    borderRadius: '50%',
+                    background: u.avatar_url ? 'transparent' : avatar.bg,
+                    color: avatar.text,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '15px',
+                    fontWeight: 700,
+                    overflow: 'hidden',
+                    flexShrink: 0,
+                  }}
+                >
+                  {u.avatar_url ? (
+                    <img src={u.avatar_url} alt={username} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    username[0].toUpperCase()
+                  )}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <p style={{ fontSize: '14px', fontWeight: 600, color: '#000', margin: 0 }}>{u.full_name || username}</p>
+                  <p style={{ fontSize: '12px', color: '#8E8E93', margin: '1px 0 0' }}>@{username}</p>
+                </div>
+                {u.id === currentUserId && (
+                  <span style={{ fontSize: '10px', fontWeight: 700, color: '#7CA982', padding: '2px 6px', background: 'rgba(124,169,130,0.15)', borderRadius: '6px' }}>TU</span>
+                )}
+              </button>
+            )
+          })}
+        </div>
+      </div>
     </div>
   )
 }
@@ -598,9 +804,17 @@ function Divider() {
   return <div style={{ width: '0.5px', background: 'rgba(0,0,0,0.1)' }} />
 }
 
-function SocialStat({ value, label }: { value: number; label: string }) {
+function SocialStat({ value, label, onClick }: { value: number; label: string; onClick?: () => void }) {
   return (
-    <div style={{ textAlign: 'center', flex: 1 }}>
+    <div
+      onClick={onClick}
+      style={{
+        textAlign: 'center',
+        flex: 1,
+        cursor: onClick ? 'pointer' : 'default',
+        padding: onClick ? '4px 0' : 0,
+      }}
+    >
       <p style={{ fontSize: '20px', fontWeight: 700, color: '#000', margin: 0, lineHeight: 1 }}>{value}</p>
       <p style={{ fontSize: '11px', color: '#8E8E93', margin: '4px 0 0', fontWeight: 500 }}>{label}</p>
     </div>
@@ -801,7 +1015,7 @@ function PostsTab({ posts, router }: { posts: PostSummary[]; router: ReturnType<
         <p style={{ fontSize: '15px', fontWeight: 600, color: '#000', margin: 0 }}>Nessun post ancora</p>
         <p style={{ fontSize: '13px', color: '#8E8E93', margin: '4px 0 16px' }}>Inizia a condividere i tuoi progressi</p>
         <button
-          onClick={() => router.push('/create')}
+          onClick={() => router.push('/new-post')}
           style={{
             padding: '10px 24px',
             background: '#7CA982',
