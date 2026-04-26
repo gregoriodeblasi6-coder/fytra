@@ -21,6 +21,85 @@ type Ingredient = {
   source: 'ai' | 'manual' | 'barcode'
 }
 
+// Profilo bevanda: unita' domestiche disponibili per quella bevanda
+// Restituisce null se l'alimento NON e' una bevanda (usa grammi normali)
+type DrinkUnit = { label: string; ml: number; emoji: string }
+function getDrinkProfile(name: string): DrinkUnit[] | null {
+  const lower = name.toLowerCase()
+
+  // Caffe / espresso → tazzina, tazza grande
+  if (/caff[e\u00E8]|espresso/.test(lower)) {
+    return [
+      { label: 'Tazzina', ml: 50, emoji: '\u2615' },
+      { label: 'Tazza', ml: 200, emoji: '\u2615' },
+      { label: 'Bicchiere', ml: 250, emoji: '\uD83E\uDD43' },
+    ]
+  }
+
+  // The / camomilla / tisane → tazza
+  if (/the|tisana|camomilla|infuso/.test(lower)) {
+    return [
+      { label: 'Tazza', ml: 200, emoji: '\uD83C\uDF75' },
+      { label: 'Bicchiere', ml: 250, emoji: '\uD83E\uDD43' },
+    ]
+  }
+
+  // Vino → calice, bicchiere
+  if (/vino/.test(lower)) {
+    return [
+      { label: 'Calice', ml: 150, emoji: '\uD83C\uDF77' },
+      { label: 'Bicchiere', ml: 200, emoji: '\uD83E\uDD43' },
+      { label: 'Bottiglia', ml: 750, emoji: '\uD83C\uDF7E' },
+    ]
+  }
+
+  // Birra → calice, lattina, boccale, bottiglia
+  if (/birra/.test(lower)) {
+    return [
+      { label: 'Lattina', ml: 330, emoji: '\uD83C\uDF7A' },
+      { label: 'Bottiglia', ml: 330, emoji: '\uD83C\uDF7A' },
+      { label: 'Calice', ml: 200, emoji: '\uD83C\uDF7A' },
+      { label: 'Boccale', ml: 500, emoji: '\uD83C\uDF7A' },
+    ]
+  }
+
+  // Bibite gassate → lattina, bottiglietta, bottiglia
+  if (/cola|bibita|aranciata|gazzosa|sprite|fanta|chinotto|tonica/.test(lower)) {
+    return [
+      { label: 'Lattina', ml: 330, emoji: '\uD83C\uDF7E' },
+      { label: 'Bottiglietta', ml: 500, emoji: '\uD83C\uDF7E' },
+      { label: 'Bicchiere', ml: 250, emoji: '\uD83E\uDD43' },
+    ]
+  }
+
+  // Succhi e centrifughe
+  if (/succo|spremuta|centrifug|smoothie|frullato/.test(lower)) {
+    return [
+      { label: 'Bicchiere', ml: 200, emoji: '\uD83E\uDD64' },
+      { label: 'Bottiglietta', ml: 250, emoji: '\uD83E\uDD64' },
+    ]
+  }
+
+  // Latte
+  if (/latte(?! di mandorl| di cocco| di soia)/.test(lower) && !/latticini|formag/.test(lower)) {
+    return [
+      { label: 'Bicchiere', ml: 200, emoji: '\uD83E\uDD5B' },
+      { label: 'Tazza', ml: 250, emoji: '\uD83E\uDD5B' },
+    ]
+  }
+
+  // Acqua
+  if (/acqua/.test(lower)) {
+    return [
+      { label: 'Bicchiere', ml: 250, emoji: '\uD83E\uDD43' },
+      { label: 'Bottiglietta', ml: 500, emoji: '\uD83D\uDCA7' },
+      { label: 'Bottiglia', ml: 1500, emoji: '\uD83D\uDCA7' },
+    ]
+  }
+
+  return null
+}
+
 // Categoria dedotta dal nome — usata per raggruppare nella modale ricerca
 function getCategory(name: string): string {
   const lower = name.toLowerCase()
@@ -165,8 +244,153 @@ const FOOD_DB: Array<Omit<Ingredient, 'id' | 'grams' | 'source'>> = [
   { name: 'Birra', kcal_per_100g: 43, protein_per_100g: 0.5, carbs_per_100g: 3.6, fat_per_100g: 0 },
   { name: 'Vino rosso', kcal_per_100g: 85, protein_per_100g: 0.1, carbs_per_100g: 2.6, fat_per_100g: 0 },
   { name: 'Vino bianco', kcal_per_100g: 82, protein_per_100g: 0.1, carbs_per_100g: 2.6, fat_per_100g: 0 },
+  { name: 'Prosecco', kcal_per_100g: 80, protein_per_100g: 0.2, carbs_per_100g: 2, fat_per_100g: 0 },
+  { name: 'Aperol spritz', kcal_per_100g: 110, protein_per_100g: 0, carbs_per_100g: 13, fat_per_100g: 0 },
   { name: 'Coca cola', kcal_per_100g: 42, protein_per_100g: 0, carbs_per_100g: 10.6, fat_per_100g: 0 },
+  { name: 'Coca cola zero', kcal_per_100g: 0.4, protein_per_100g: 0, carbs_per_100g: 0, fat_per_100g: 0 },
   { name: 'Succo arancia', kcal_per_100g: 45, protein_per_100g: 0.7, carbs_per_100g: 10.4, fat_per_100g: 0.2 },
+  { name: 'Acqua', kcal_per_100g: 0, protein_per_100g: 0, carbs_per_100g: 0, fat_per_100g: 0 },
+
+  // Cereali aggiuntivi
+  { name: 'Riso basmati cotto', kcal_per_100g: 121, protein_per_100g: 3, carbs_per_100g: 25, fat_per_100g: 0.4 },
+  { name: 'Pasta integrale cruda', kcal_per_100g: 348, protein_per_100g: 13, carbs_per_100g: 66, fat_per_100g: 2.5 },
+  { name: 'Pasta cruda', kcal_per_100g: 371, protein_per_100g: 13, carbs_per_100g: 75, fat_per_100g: 1.5 },
+  { name: 'Riso cotto venere', kcal_per_100g: 122, protein_per_100g: 3.5, carbs_per_100g: 24, fat_per_100g: 1 },
+  { name: 'Polenta', kcal_per_100g: 100, protein_per_100g: 2.5, carbs_per_100g: 22, fat_per_100g: 0.5 },
+  { name: 'Cracker integrali', kcal_per_100g: 426, protein_per_100g: 11, carbs_per_100g: 64, fat_per_100g: 13 },
+  { name: 'Grissini', kcal_per_100g: 433, protein_per_100g: 12, carbs_per_100g: 70, fat_per_100g: 12 },
+  { name: 'Fette biscottate', kcal_per_100g: 410, protein_per_100g: 11, carbs_per_100g: 78, fat_per_100g: 7 },
+  { name: 'Pane di segale', kcal_per_100g: 259, protein_per_100g: 8.5, carbs_per_100g: 48, fat_per_100g: 3.3 },
+  { name: 'Tortillas mais', kcal_per_100g: 218, protein_per_100g: 5.7, carbs_per_100g: 45, fat_per_100g: 2.9 },
+  { name: 'Tortillas grano', kcal_per_100g: 304, protein_per_100g: 8, carbs_per_100g: 51, fat_per_100g: 7.5 },
+  { name: 'Bagel', kcal_per_100g: 250, protein_per_100g: 10, carbs_per_100g: 49, fat_per_100g: 1.5 },
+
+  // Carni aggiuntive
+  { name: 'Hamburger di manzo', kcal_per_100g: 254, protein_per_100g: 17, carbs_per_100g: 0, fat_per_100g: 20 },
+  { name: 'Wurstel', kcal_per_100g: 270, protein_per_100g: 13, carbs_per_100g: 2, fat_per_100g: 23 },
+  { name: 'Speck', kcal_per_100g: 303, protein_per_100g: 28, carbs_per_100g: 0, fat_per_100g: 20 },
+  { name: 'Pancetta', kcal_per_100g: 458, protein_per_100g: 11.7, carbs_per_100g: 0, fat_per_100g: 45 },
+  { name: 'Salsiccia', kcal_per_100g: 304, protein_per_100g: 13, carbs_per_100g: 1, fat_per_100g: 27 },
+  { name: 'Kebab', kcal_per_100g: 215, protein_per_100g: 16, carbs_per_100g: 5, fat_per_100g: 14 },
+
+  // Pesce aggiuntivo
+  { name: 'Sgombro', kcal_per_100g: 205, protein_per_100g: 19, carbs_per_100g: 0, fat_per_100g: 14 },
+  { name: 'Sogliola', kcal_per_100g: 86, protein_per_100g: 17, carbs_per_100g: 0.8, fat_per_100g: 1.4 },
+  { name: 'Trota', kcal_per_100g: 119, protein_per_100g: 18, carbs_per_100g: 0, fat_per_100g: 4.4 },
+  { name: 'Pesce spada', kcal_per_100g: 121, protein_per_100g: 20, carbs_per_100g: 0, fat_per_100g: 4 },
+  { name: 'Polpo', kcal_per_100g: 82, protein_per_100g: 14, carbs_per_100g: 1.4, fat_per_100g: 1 },
+  { name: 'Cozze', kcal_per_100g: 86, protein_per_100g: 12, carbs_per_100g: 3.7, fat_per_100g: 2.2 },
+  { name: 'Vongole', kcal_per_100g: 74, protein_per_100g: 12.7, carbs_per_100g: 2.6, fat_per_100g: 1 },
+  { name: 'Bastoncini di pesce', kcal_per_100g: 207, protein_per_100g: 12, carbs_per_100g: 17, fat_per_100g: 10 },
+
+  // Latticini aggiuntivi
+  { name: 'Yogurt magro 0%', kcal_per_100g: 42, protein_per_100g: 4.2, carbs_per_100g: 6, fat_per_100g: 0.1 },
+  { name: 'Skyr', kcal_per_100g: 63, protein_per_100g: 11, carbs_per_100g: 4, fat_per_100g: 0.2 },
+  { name: 'Quark', kcal_per_100g: 73, protein_per_100g: 12, carbs_per_100g: 3.6, fat_per_100g: 0.2 },
+  { name: 'Pecorino', kcal_per_100g: 387, protein_per_100g: 26, carbs_per_100g: 0, fat_per_100g: 31 },
+  { name: 'Gorgonzola', kcal_per_100g: 330, protein_per_100g: 18, carbs_per_100g: 0, fat_per_100g: 28 },
+  { name: 'Brie', kcal_per_100g: 334, protein_per_100g: 21, carbs_per_100g: 0.5, fat_per_100g: 28 },
+  { name: 'Provolone', kcal_per_100g: 351, protein_per_100g: 26, carbs_per_100g: 2, fat_per_100g: 27 },
+  { name: 'Caprino', kcal_per_100g: 268, protein_per_100g: 18, carbs_per_100g: 1, fat_per_100g: 21 },
+  { name: 'Burrata', kcal_per_100g: 290, protein_per_100g: 16, carbs_per_100g: 1, fat_per_100g: 25 },
+  { name: 'Latte di mandorla', kcal_per_100g: 25, protein_per_100g: 0.6, carbs_per_100g: 3, fat_per_100g: 1.2 },
+  { name: 'Latte di soia', kcal_per_100g: 41, protein_per_100g: 3.3, carbs_per_100g: 2.6, fat_per_100g: 1.8 },
+  { name: 'Latte di cocco', kcal_per_100g: 230, protein_per_100g: 2.3, carbs_per_100g: 6, fat_per_100g: 24 },
+  { name: 'Panna fresca', kcal_per_100g: 337, protein_per_100g: 2.5, carbs_per_100g: 3, fat_per_100g: 36 },
+
+  // Verdure aggiuntive
+  { name: 'Sedano', kcal_per_100g: 16, protein_per_100g: 0.7, carbs_per_100g: 3, fat_per_100g: 0.2 },
+  { name: 'Finocchio', kcal_per_100g: 31, protein_per_100g: 1.2, carbs_per_100g: 7, fat_per_100g: 0.2 },
+  { name: 'Bietola', kcal_per_100g: 19, protein_per_100g: 1.8, carbs_per_100g: 3.7, fat_per_100g: 0.2 },
+  { name: 'Cicoria', kcal_per_100g: 23, protein_per_100g: 1.7, carbs_per_100g: 4.7, fat_per_100g: 0.3 },
+  { name: 'Cavoletti di Bruxelles', kcal_per_100g: 43, protein_per_100g: 3.4, carbs_per_100g: 9, fat_per_100g: 0.3 },
+  { name: 'Cavolo verza', kcal_per_100g: 25, protein_per_100g: 1.3, carbs_per_100g: 6, fat_per_100g: 0.1 },
+  { name: 'Patate dolci', kcal_per_100g: 86, protein_per_100g: 1.6, carbs_per_100g: 20, fat_per_100g: 0.1 },
+  { name: 'Mais lessato', kcal_per_100g: 96, protein_per_100g: 3.4, carbs_per_100g: 21, fat_per_100g: 1.5 },
+  { name: 'Olive verdi', kcal_per_100g: 145, protein_per_100g: 1, carbs_per_100g: 4, fat_per_100g: 15 },
+  { name: 'Olive nere', kcal_per_100g: 235, protein_per_100g: 1.8, carbs_per_100g: 6, fat_per_100g: 25 },
+  { name: 'Aglio', kcal_per_100g: 149, protein_per_100g: 6.4, carbs_per_100g: 33, fat_per_100g: 0.5 },
+
+  // Frutta aggiuntiva
+  { name: 'Pera', kcal_per_100g: 57, protein_per_100g: 0.4, carbs_per_100g: 15, fat_per_100g: 0.1 },
+  { name: 'Anguria', kcal_per_100g: 30, protein_per_100g: 0.6, carbs_per_100g: 7.6, fat_per_100g: 0.2 },
+  { name: 'Melone', kcal_per_100g: 34, protein_per_100g: 0.8, carbs_per_100g: 8, fat_per_100g: 0.2 },
+  { name: 'Mango', kcal_per_100g: 60, protein_per_100g: 0.8, carbs_per_100g: 15, fat_per_100g: 0.4 },
+  { name: 'Albicocche', kcal_per_100g: 48, protein_per_100g: 1.4, carbs_per_100g: 11, fat_per_100g: 0.4 },
+  { name: 'Lamponi', kcal_per_100g: 52, protein_per_100g: 1.2, carbs_per_100g: 12, fat_per_100g: 0.7 },
+  { name: 'More', kcal_per_100g: 43, protein_per_100g: 1.4, carbs_per_100g: 10, fat_per_100g: 0.5 },
+  { name: 'Datteri', kcal_per_100g: 277, protein_per_100g: 1.8, carbs_per_100g: 75, fat_per_100g: 0.2 },
+  { name: 'Fichi', kcal_per_100g: 74, protein_per_100g: 0.8, carbs_per_100g: 19, fat_per_100g: 0.3 },
+  { name: 'Frutta secca mix', kcal_per_100g: 580, protein_per_100g: 17, carbs_per_100g: 22, fat_per_100g: 50 },
+
+  // Legumi aggiuntivi
+  { name: 'Lenticchie rosse cotte', kcal_per_100g: 116, protein_per_100g: 9, carbs_per_100g: 20, fat_per_100g: 0.4 },
+  { name: 'Hummus', kcal_per_100g: 166, protein_per_100g: 8, carbs_per_100g: 14, fat_per_100g: 10 },
+  { name: 'Soia cotta', kcal_per_100g: 173, protein_per_100g: 16, carbs_per_100g: 9, fat_per_100g: 9 },
+  { name: 'Seitan', kcal_per_100g: 142, protein_per_100g: 30, carbs_per_100g: 6, fat_per_100g: 0.5 },
+
+  // Frutta secca aggiuntiva
+  { name: 'Burro di arachidi', kcal_per_100g: 588, protein_per_100g: 25, carbs_per_100g: 20, fat_per_100g: 50 },
+  { name: 'Arachidi', kcal_per_100g: 567, protein_per_100g: 26, carbs_per_100g: 16, fat_per_100g: 49 },
+  { name: 'Semi di girasole', kcal_per_100g: 584, protein_per_100g: 21, carbs_per_100g: 20, fat_per_100g: 51 },
+  { name: 'Semi di zucca', kcal_per_100g: 559, protein_per_100g: 30, carbs_per_100g: 11, fat_per_100g: 49 },
+
+  // Snack e dolci
+  { name: 'Biscotti frollini', kcal_per_100g: 460, protein_per_100g: 6, carbs_per_100g: 70, fat_per_100g: 17 },
+  { name: 'Cioccolato fondente 70%', kcal_per_100g: 598, protein_per_100g: 8, carbs_per_100g: 46, fat_per_100g: 43 },
+  { name: 'Cioccolato al latte', kcal_per_100g: 535, protein_per_100g: 7.6, carbs_per_100g: 59, fat_per_100g: 30 },
+  { name: 'Gelato fior di latte', kcal_per_100g: 207, protein_per_100g: 3.5, carbs_per_100g: 24, fat_per_100g: 11 },
+  { name: 'Gelato cioccolato', kcal_per_100g: 216, protein_per_100g: 3.8, carbs_per_100g: 28, fat_per_100g: 11 },
+  { name: 'Tiramisu', kcal_per_100g: 240, protein_per_100g: 4.6, carbs_per_100g: 22, fat_per_100g: 14 },
+  { name: 'Croissant', kcal_per_100g: 406, protein_per_100g: 8.2, carbs_per_100g: 46, fat_per_100g: 21 },
+  { name: 'Cornetto', kcal_per_100g: 380, protein_per_100g: 7.5, carbs_per_100g: 50, fat_per_100g: 17 },
+  { name: 'Torta margherita', kcal_per_100g: 345, protein_per_100g: 6, carbs_per_100g: 50, fat_per_100g: 13 },
+  { name: 'Crostata marmellata', kcal_per_100g: 360, protein_per_100g: 5, carbs_per_100g: 60, fat_per_100g: 11 },
+  { name: 'Patatine fritte busta', kcal_per_100g: 536, protein_per_100g: 6, carbs_per_100g: 53, fat_per_100g: 33 },
+  { name: 'Pop corn', kcal_per_100g: 387, protein_per_100g: 12, carbs_per_100g: 78, fat_per_100g: 4.5 },
+
+  // Piatti completi tipici italiani
+  { name: 'Pasta al pomodoro', kcal_per_100g: 130, protein_per_100g: 4, carbs_per_100g: 24, fat_per_100g: 2 },
+  { name: 'Pasta carbonara', kcal_per_100g: 280, protein_per_100g: 11, carbs_per_100g: 28, fat_per_100g: 13 },
+  { name: 'Lasagne', kcal_per_100g: 175, protein_per_100g: 9, carbs_per_100g: 18, fat_per_100g: 7 },
+  { name: 'Risotto', kcal_per_100g: 165, protein_per_100g: 4, carbs_per_100g: 25, fat_per_100g: 5 },
+  { name: 'Parmigiana melanzane', kcal_per_100g: 200, protein_per_100g: 8, carbs_per_100g: 10, fat_per_100g: 14 },
+  { name: 'Cotoletta milanese', kcal_per_100g: 290, protein_per_100g: 22, carbs_per_100g: 12, fat_per_100g: 17 },
+  { name: 'Insalata caprese', kcal_per_100g: 165, protein_per_100g: 9, carbs_per_100g: 4, fat_per_100g: 13 },
+  { name: 'Bruschetta', kcal_per_100g: 220, protein_per_100g: 6, carbs_per_100g: 32, fat_per_100g: 7 },
+  { name: 'Sushi (8 pezzi)', kcal_per_100g: 142, protein_per_100g: 6, carbs_per_100g: 28, fat_per_100g: 0.7 },
+  { name: 'Insalata greca', kcal_per_100g: 130, protein_per_100g: 5, carbs_per_100g: 6, fat_per_100g: 10 },
+  { name: 'Piadina prosciutto', kcal_per_100g: 280, protein_per_100g: 11, carbs_per_100g: 38, fat_per_100g: 9 },
+
+  // Bevande aggiuntive
+  { name: 'Caffe latte', kcal_per_100g: 56, protein_per_100g: 3, carbs_per_100g: 5, fat_per_100g: 2.5 },
+  { name: 'Cappuccino', kcal_per_100g: 38, protein_per_100g: 2, carbs_per_100g: 3.5, fat_per_100g: 1.8 },
+  { name: 'Camomilla', kcal_per_100g: 1, protein_per_100g: 0, carbs_per_100g: 0.2, fat_per_100g: 0 },
+  { name: 'Tisana', kcal_per_100g: 1, protein_per_100g: 0, carbs_per_100g: 0.2, fat_per_100g: 0 },
+  { name: 'Aranciata', kcal_per_100g: 41, protein_per_100g: 0.2, carbs_per_100g: 10, fat_per_100g: 0 },
+  { name: 'Energy drink', kcal_per_100g: 45, protein_per_100g: 0, carbs_per_100g: 11, fat_per_100g: 0 },
+  { name: 'Spremuta arancia', kcal_per_100g: 41, protein_per_100g: 0.7, carbs_per_100g: 9, fat_per_100g: 0.1 },
+  { name: 'Smoothie frutta', kcal_per_100g: 60, protein_per_100g: 1, carbs_per_100g: 14, fat_per_100g: 0.3 },
+  { name: 'Negroni', kcal_per_100g: 175, protein_per_100g: 0, carbs_per_100g: 8, fat_per_100g: 0 },
+  { name: 'Mojito', kcal_per_100g: 110, protein_per_100g: 0, carbs_per_100g: 8, fat_per_100g: 0 },
+  { name: 'Gin tonic', kcal_per_100g: 100, protein_per_100g: 0, carbs_per_100g: 5, fat_per_100g: 0 },
+  { name: 'Whisky', kcal_per_100g: 250, protein_per_100g: 0, carbs_per_100g: 0, fat_per_100g: 0 },
+
+  // Fast food / snack
+  { name: 'Pizza salame', kcal_per_100g: 285, protein_per_100g: 12, carbs_per_100g: 31, fat_per_100g: 12 },
+  { name: 'Pizza prosciutto e funghi', kcal_per_100g: 250, protein_per_100g: 11, carbs_per_100g: 31, fat_per_100g: 9 },
+  { name: 'Hot dog', kcal_per_100g: 247, protein_per_100g: 10, carbs_per_100g: 18, fat_per_100g: 15 },
+  { name: 'Patatine McDonald s medie', kcal_per_100g: 312, protein_per_100g: 3.4, carbs_per_100g: 41, fat_per_100g: 15 },
+  { name: 'Big Mac', kcal_per_100g: 257, protein_per_100g: 13, carbs_per_100g: 19, fat_per_100g: 14 },
+  { name: 'Toast prosciutto e formaggio', kcal_per_100g: 280, protein_per_100g: 12, carbs_per_100g: 30, fat_per_100g: 12 },
+  { name: 'Tramezzino tonno', kcal_per_100g: 270, protein_per_100g: 11, carbs_per_100g: 28, fat_per_100g: 13 },
+
+  // Alimenti dietetici / fitness
+  { name: 'Proteine in polvere whey', kcal_per_100g: 380, protein_per_100g: 80, carbs_per_100g: 8, fat_per_100g: 5 },
+  { name: 'Barretta proteica', kcal_per_100g: 360, protein_per_100g: 30, carbs_per_100g: 35, fat_per_100g: 10 },
+  { name: 'Barretta cereali', kcal_per_100g: 400, protein_per_100g: 6, carbs_per_100g: 70, fat_per_100g: 11 },
+  { name: 'Maltodestrine', kcal_per_100g: 380, protein_per_100g: 0, carbs_per_100g: 95, fat_per_100g: 0 },
+  { name: 'Creatina', kcal_per_100g: 0, protein_per_100g: 0, carbs_per_100g: 0, fat_per_100g: 0 },
 ]
 
 export default function NewPostPage() {
@@ -1423,63 +1647,140 @@ function AddIngredientModal({
             </>
           )}
 
-          {mode === 'search' && selected && (
+          {mode === 'search' && selected && (() => {
+            const drinkUnits = getDrinkProfile(selected.name)
+
+            return (
             <div>
               <div style={{ background: '#FFF', borderRadius: '12px', padding: '14px', marginBottom: '14px' }}>
                 <p style={{ fontSize: '15px', fontWeight: 600, color: '#000', margin: 0 }}>{selected.name}</p>
                 <p style={{ fontSize: '12px', color: '#8E8E93', margin: '4px 0 0' }}>
-                  {selected.kcal_per_100g} kcal {'\u00B7'} P {selected.protein_per_100g}g {'\u00B7'} C {selected.carbs_per_100g}g {'\u00B7'} F {selected.fat_per_100g}g (per 100g)
+                  {selected.kcal_per_100g} kcal {'\u00B7'} P {selected.protein_per_100g}g {'\u00B7'} C {selected.carbs_per_100g}g {'\u00B7'} F {selected.fat_per_100g}g (per 100{drinkUnits ? 'ml' : 'g'})
                 </p>
               </div>
-              <label style={{ fontSize: '12px', fontWeight: 600, color: '#8E8E93', letterSpacing: '0.3px', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>
-                Quantit{'\u00E0'} (grammi)
-              </label>
-              <div style={{ position: 'relative' }}>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={grams}
-                  onChange={e => setGrams(e.target.value.replace(/[^0-9]/g, '').slice(0, 5))}
-                  autoFocus
-                  style={{
-                    width: '100%',
-                    height: '44px',
-                    padding: '0 44px 0 14px',
-                    background: '#FFF',
-                    border: 'none',
-                    borderRadius: '10px',
-                    fontSize: '15px',
-                    color: '#000',
-                    outline: 'none',
-                    fontFamily: 'inherit',
-                    boxSizing: 'border-box',
-                  }}
-                />
-                <span style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', fontSize: '13px', color: '#8E8E93', pointerEvents: 'none' }}>
-                  g
-                </span>
-              </div>
-              <div style={{ marginTop: '10px', display: 'flex', gap: '6px' }}>
-                {[50, 100, 150, 200].map(g => (
-                  <button
-                    key={g}
-                    onClick={() => setGrams(String(g))}
-                    style={{
-                      flex: 1,
-                      padding: '8px',
-                      background: '#FFF',
-                      border: 'none',
-                      borderRadius: '8px',
-                      fontSize: '13px',
-                      color: '#007AFF',
-                      cursor: 'pointer',
-                      fontWeight: 500,
-                    }}
-                  >
-                    {g}g
-                  </button>
-                ))}
-              </div>
+
+              {drinkUnits ? (
+                /* === BEVANDE: unita domestiche === */
+                <>
+                  <label style={{ fontSize: '12px', fontWeight: 600, color: '#8E8E93', letterSpacing: '0.3px', textTransform: 'uppercase', display: 'block', marginBottom: '8px' }}>
+                    Quanto ne hai bevuto?
+                  </label>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', marginBottom: '12px' }}>
+                    {drinkUnits.map(u => {
+                      const totalMl = u.ml
+                      const isActive = parseInt(grams) === totalMl
+                      return (
+                        <button
+                          key={u.label}
+                          onClick={() => setGrams(String(totalMl))}
+                          style={{
+                            background: isActive ? 'rgba(124, 169, 130, 0.15)' : '#FFF',
+                            border: isActive ? '1.5px solid #7CA982' : '1.5px solid transparent',
+                            borderRadius: '12px',
+                            padding: '14px 10px',
+                            cursor: 'pointer',
+                            textAlign: 'center',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: '4px',
+                          }}
+                        >
+                          <span style={{ fontSize: '24px' }}>{u.emoji}</span>
+                          <span style={{ fontSize: '13px', fontWeight: isActive ? 700 : 600, color: isActive ? '#4F7057' : '#000' }}>
+                            {u.label}
+                          </span>
+                          <span style={{ fontSize: '11px', color: '#8E8E93' }}>
+                            {u.ml} ml
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+
+                  {/* Possibilita' di mettere quantita' personalizzata */}
+                  <label style={{ fontSize: '11px', fontWeight: 600, color: '#8E8E93', letterSpacing: '0.3px', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>
+                    O quantit{'\u00E0'} personalizzata
+                  </label>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={grams}
+                      onChange={e => setGrams(e.target.value.replace(/[^0-9]/g, '').slice(0, 5))}
+                      style={{
+                        width: '100%',
+                        height: '40px',
+                        padding: '0 44px 0 14px',
+                        background: '#FFF',
+                        border: 'none',
+                        borderRadius: '10px',
+                        fontSize: '14px',
+                        color: '#000',
+                        outline: 'none',
+                        fontFamily: 'inherit',
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                    <span style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', fontSize: '12px', color: '#8E8E93', pointerEvents: 'none' }}>
+                      ml
+                    </span>
+                  </div>
+                </>
+              ) : (
+                /* === SOLIDI: grammi normali === */
+                <>
+                  <label style={{ fontSize: '12px', fontWeight: 600, color: '#8E8E93', letterSpacing: '0.3px', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>
+                    Quantit{'\u00E0'} (grammi)
+                  </label>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={grams}
+                      onChange={e => setGrams(e.target.value.replace(/[^0-9]/g, '').slice(0, 5))}
+                      autoFocus
+                      style={{
+                        width: '100%',
+                        height: '44px',
+                        padding: '0 44px 0 14px',
+                        background: '#FFF',
+                        border: 'none',
+                        borderRadius: '10px',
+                        fontSize: '15px',
+                        color: '#000',
+                        outline: 'none',
+                        fontFamily: 'inherit',
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                    <span style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', fontSize: '13px', color: '#8E8E93', pointerEvents: 'none' }}>
+                      g
+                    </span>
+                  </div>
+                  <div style={{ marginTop: '10px', display: 'flex', gap: '6px' }}>
+                    {[50, 100, 150, 200].map(g => (
+                      <button
+                        key={g}
+                        onClick={() => setGrams(String(g))}
+                        style={{
+                          flex: 1,
+                          padding: '8px',
+                          background: '#FFF',
+                          border: 'none',
+                          borderRadius: '8px',
+                          fontSize: '13px',
+                          color: '#007AFF',
+                          cursor: 'pointer',
+                          fontWeight: 500,
+                        }}
+                      >
+                        {g}g
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
 
               <button
                 onClick={() => setSelected(null)}
@@ -1497,7 +1798,8 @@ function AddIngredientModal({
                 {'\u2190'} Torna alla ricerca
               </button>
             </div>
-          )}
+            )
+          })()}
 
           {mode === 'manual' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>

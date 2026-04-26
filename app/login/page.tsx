@@ -37,14 +37,10 @@ export default function LoginPage() {
     setMessage('')
 
     if (isSignUp) {
-      const { data, error } = await supabase.auth.signUp({ email, password })
+      const { error } = await supabase.auth.signUp({ email, password })
       if (error) {
         setError(error.message)
-      } else if (data.session) {
-        // Signup con sessione attiva (email confirmation disabilitata) → onboarding
-        router.push('/onboarding')
       } else {
-        // Signup con email confirmation attiva → messaggio
         setMessage('Controlla la tua email per confermare la registrazione.')
       }
     } else {
@@ -52,8 +48,7 @@ export default function LoginPage() {
       if (error) {
         setError(error.message)
       } else {
-        // Login: vai al root che decide lui dove mandarti
-        router.push('/')
+        router.push('/onboarding')
       }
     }
     setLoading(false)
@@ -560,6 +555,16 @@ export default function LoginPage() {
                 )}
               </button>
             </form>
+
+            {/* Privacy / Termini disclaimer (solo signup) */}
+            {isSignUp && (
+              <p style={{ fontSize: '11px', color: '#8E8E93', textAlign: 'center', margin: '12px 0 0', lineHeight: 1.4 }}>
+                Continuando accetti i nostri{' '}
+                <a href="/terms" style={{ color: '#7CA982', textDecoration: 'underline', fontWeight: 600 }}>Termini</a>
+                {' '}e l{'\u2019'}{' '}
+                <a href="/privacy" style={{ color: '#7CA982', textDecoration: 'underline', fontWeight: 600 }}>Informativa Privacy</a>.
+              </p>
+            )}
 
             {/* Divider */}
             <div

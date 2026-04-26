@@ -303,35 +303,81 @@ export default function ProfilePage() {
               <button
                 onClick={() => setEditMode(true)}
                 style={{
-                  padding: '9px 20px',
+                  padding: '9px 16px',
                   borderRadius: '10px',
                   background: '#FFF',
                   border: 'none',
-                  fontSize: '14px',
+                  fontSize: '13px',
                   fontWeight: 600,
                   color: '#000',
                   cursor: 'pointer',
                   boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
                   flex: 1,
-                  maxWidth: '160px',
+                  maxWidth: '130px',
                 }}
               >
-                Modifica profilo
+                Modifica
+              </button>
+              <button
+                onClick={async () => {
+                  if (!user) return
+                  const url = window.location.origin + '/profile/' + user.id
+                  if (typeof navigator !== 'undefined' && (navigator as any).share) {
+                    try {
+                      await (navigator as any).share({
+                        title: profile?.full_name || 'Profilo Fytra',
+                        text: 'Seguimi su Fytra',
+                        url,
+                      })
+                    } catch {}
+                  } else {
+                    try {
+                      await navigator.clipboard.writeText(url)
+                      alert('Link del profilo copiato!')
+                    } catch {
+                      prompt('Copia questo link:', url)
+                    }
+                  }
+                }}
+                aria-label="Condividi profilo"
+                style={{
+                  padding: '9px 14px',
+                  borderRadius: '10px',
+                  background: '#FFF',
+                  border: 'none',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  color: '#000',
+                  cursor: 'pointer',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="18" cy="5" r="3" />
+                  <circle cx="6" cy="12" r="3" />
+                  <circle cx="18" cy="19" r="3" />
+                  <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                  <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+                </svg>
+                Condividi
               </button>
               <button
                 onClick={() => router.push('/create')}
                 style={{
-                  padding: '9px 20px',
+                  padding: '9px 16px',
                   borderRadius: '10px',
                   background: '#7CA982',
                   border: 'none',
-                  fontSize: '14px',
+                  fontSize: '13px',
                   fontWeight: 600,
                   color: '#FFF',
                   cursor: 'pointer',
                   boxShadow: '0 2px 6px rgba(124, 169, 130, 0.3)',
                   flex: 1,
-                  maxWidth: '160px',
+                  maxWidth: '130px',
                 }}
               >
                 Nuovo post
@@ -1242,8 +1288,8 @@ function SettingsModal({ email, onClose, onLogout }: { email: string; onClose: (
 
           <SettingsGroup title="Supporto">
             <SettingsRow label="Centro aiuto" action />
-            <SettingsRow label="Termini di servizio" action />
-            <SettingsRow label="Privacy policy" action />
+            <SettingsRow label="Termini di servizio" action onClick={() => window.open('/terms', '_blank')} />
+            <SettingsRow label="Privacy policy" action onClick={() => window.open('/privacy', '_blank')} />
             <SettingsRow label="Versione" value="1.0.0 beta" readOnly />
           </SettingsGroup>
 
@@ -1303,6 +1349,7 @@ function SettingsRow({
   readOnly,
   toggle,
   defaultOn,
+  onClick,
 }: {
   label: string
   value?: string
@@ -1310,17 +1357,19 @@ function SettingsRow({
   readOnly?: boolean
   toggle?: boolean
   defaultOn?: boolean
+  onClick?: () => void
 }) {
   const [on, setOn] = useState(defaultOn || false)
   return (
     <div
+      onClick={onClick}
       style={{
         padding: '12px 16px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
         borderBottom: '0.5px solid rgba(0,0,0,0.06)',
-        cursor: action ? 'pointer' : 'default',
+        cursor: action || onClick ? 'pointer' : 'default',
       }}
     >
       <span style={{ fontSize: '15px', color: '#000' }}>{label}</span>

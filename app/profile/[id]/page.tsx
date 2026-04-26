@@ -308,6 +308,50 @@ export default function OtherProfilePage() {
                 </svg>
                 Messaggio
               </button>
+              <button
+                onClick={async () => {
+                  const url = window.location.href
+                  if (typeof navigator !== 'undefined' && (navigator as any).share) {
+                    try {
+                      await (navigator as any).share({
+                        title: profile.full_name || 'Profilo Fytra',
+                        text: 'Dai un occhiata al profilo di ' + (profile.full_name || profile.username) + ' su Fytra',
+                        url,
+                      })
+                    } catch {}
+                  } else {
+                    try {
+                      await navigator.clipboard.writeText(url)
+                      alert('Link del profilo copiato!')
+                    } catch {
+                      prompt('Copia questo link:', url)
+                    }
+                  }
+                }}
+                aria-label="Condividi profilo"
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: '12px',
+                  background: '#FFF',
+                  color: '#000',
+                  border: 'none',
+                  fontSize: '14px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="18" cy="5" r="3" />
+                  <circle cx="6" cy="12" r="3" />
+                  <circle cx="18" cy="19" r="3" />
+                  <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                  <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+                </svg>
+              </button>
             </div>
           </div>
 

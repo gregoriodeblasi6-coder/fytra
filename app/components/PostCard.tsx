@@ -514,10 +514,24 @@ function LikesListModal({
 
 /* ============ WORKOUT BODY ============ */
 function WorkoutPostBody({ post }: { post: PostData }) {
+  const workoutLower = (post.workout_type || '').toLowerCase()
+  // Sport "running-like" dove il passo (min/km) ha senso
+  const isRunning = /corsa|cammin|escursionismo|trekking|hiking/.test(workoutLower)
+
+  // Calcolo passo medio se possibile (durata in min / distanza in km)
+  let paceText: string | null = null
+  if (isRunning && post.workout_duration_min && post.workout_distance_km && post.workout_distance_km > 0) {
+    const paceTotalMin = post.workout_duration_min / post.workout_distance_km
+    const paceMin = Math.floor(paceTotalMin)
+    const paceSec = Math.round((paceTotalMin - paceMin) * 60)
+    paceText = paceMin + "'" + String(paceSec).padStart(2, '0') + '"'
+  }
+
   const stats = [
     post.workout_duration_min && { label: 'DURATA', value: formatDuration(post.workout_duration_min), color: '#7CA982' },
     post.workout_distance_km && { label: 'DISTANZA', value: post.workout_distance_km.toFixed(1) + ' km', color: '#3B82F6' },
-    post.workout_speed_kmh && { label: 'VELOCITA', value: post.workout_speed_kmh.toFixed(1), color: '#8B5CF6', suffix: 'km/h' },
+    paceText && { label: 'PASSO', value: paceText, color: '#D17A3C', suffix: '/km' },
+    !paceText && post.workout_speed_kmh && { label: 'VELOCITA', value: post.workout_speed_kmh.toFixed(1), color: '#8B5CF6', suffix: 'km/h' },
     post.workout_heartrate && { label: 'BPM', value: String(post.workout_heartrate), color: '#FF3B30' },
   ].filter(Boolean) as Array<{ label: string; value: string; color: string; suffix?: string }>
 
