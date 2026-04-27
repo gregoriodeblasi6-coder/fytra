@@ -50,42 +50,57 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false)
   const [userListMode, setUserListMode] = useState<null | 'followers' | 'following'>(null)
   const [avatarUploading, setAvatarUploading] = useState(false)
+  const [avatarToCrop, setAvatarToCrop] = useState<string | null>(null)
   const avatarFileRef = useRef<HTMLInputElement>(null)
 
-  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file || !user) return
 
-    // Verifica che sia un'immagine e che non sia troppo grossa (<5MB)
     if (!file.type.startsWith('image/')) {
       alert('Il file deve essere un\'immagine.')
       return
     }
-    if (file.size > 5 * 1024 * 1024) {
-      alert('La foto e\' troppo grande (max 5MB).')
+    if (file.size > 10 * 1024 * 1024) {
+      alert('La foto e\' troppo grande (max 10MB).')
       return
     }
 
+    // Apro modale crop con dataURL
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      const dataUrl = ev.target?.result as string
+      setAvatarToCrop(dataUrl)
+    }
+    reader.readAsDataURL(file)
+
+    if (avatarFileRef.current) avatarFileRef.current.value = ''
+  }
+
+  const uploadCroppedAvatar = async (croppedDataUrl: string) => {
+    if (!user) return
     setAvatarUploading(true)
     try {
-      // Upload nel folder dell'user (richiesto dalle policy storage)
-      const ext = file.name.split('.').pop() || 'jpg'
-      const filePath = user!.id + '/avatar-' + Date.now() + '.' + ext
+      // Converte dataUrl in Blob
+      const blob = await (await fetch(croppedDataUrl)).blob()
+      const filePath = user!.id + '/avatar-' + Date.now() + '.jpg'
 
       const { error: uploadErr } = await supabase.storage
         .from('avatars')
-        .upload(filePath, file, { upsert: true })
+        .upload(filePath, blob, {
+          upsert: true,
+          contentType: 'image/jpeg',
+        })
 
       if (uploadErr) throw uploadErr
 
-      // URL pubblico
       const { data: urlData } = supabase.storage
         .from('avatars')
         .getPublicUrl(filePath)
 
-      const publicUrl = urlData.publicUrl
+      // Aggiungo timestamp per evitare cache browser
+      const publicUrl = urlData.publicUrl + '?t=' + Date.now()
 
-      // Aggiorna profilo con nuova URL
       const { error: updErr } = await supabase
         .from('profiles')
         .update({ avatar_url: publicUrl })
@@ -93,13 +108,13 @@ export default function ProfilePage() {
 
       if (updErr) throw updErr
 
-      // Refresh locale
       setProfile(p => p ? { ...p, avatar_url: publicUrl } : p)
+      setAvatarToCrop(null)
     } catch (err: any) {
       alert('Errore caricamento foto: ' + (err.message || 'errore generico'))
+      console.error('Avatar upload error:', err)
     } finally {
       setAvatarUploading(false)
-      if (avatarFileRef.current) avatarFileRef.current.value = ''
     }
   }
 
@@ -286,34 +301,37 @@ export default function ProfilePage() {
           {/* AVATAR + NAME + BIO BLOCK */}
           <div style={{ padding: '20px 20px 16px', textAlign: 'center' }}>
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '14px' }}>
-              <div
-                style={{
-                  width: '90px',
-                  height: '90px',
-                  borderRadius: '50%',
-                  background: profile?.avatar_url ? 'transparent' : avatar.bg,
-                  color: avatar.text,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '34px',
-                  fontWeight: 700,
-                  boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
-                  position: 'relative',
-                  overflow: 'hidden',
-                }}
-              >
-                {profile?.avatar_url ? (
-                  <img
-                    src={profile.avatar_url}
-                    alt={username}
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                  />
-                ) : (
-                  username[0].toUpperCase()
-                )}
+              {/* Wrapper con position:relative — niente overflow qui (per il bottone) */}
+              <div style={{ position: 'relative', width: '90px', height: '90px' }}>
+                {/* Cerchio interno con overflow hidden per fittare la foto */}
+                <div
+                  style={{
+                    width: '90px',
+                    height: '90px',
+                    borderRadius: '50%',
+                    background: profile?.avatar_url ? 'transparent' : avatar.bg,
+                    color: avatar.text,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '34px',
+                    fontWeight: 700,
+                    boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
+                    overflow: 'hidden',
+                  }}
+                >
+                  {profile?.avatar_url ? (
+                    <img
+                      src={profile.avatar_url}
+                      alt={username}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                  ) : (
+                    username[0].toUpperCase()
+                  )}
+                </div>
 
-                {/* Bottone upload (file picker invisibile sopra) */}
+                {/* Bottone upload (file picker invisibile) — FUORI dall'overflow del cerchio */}
                 <input
                   ref={avatarFileRef}
                   type="file"
@@ -327,23 +345,29 @@ export default function ProfilePage() {
                   disabled={avatarUploading}
                   style={{
                     position: 'absolute',
-                    bottom: '2px',
-                    right: '2px',
-                    width: '28px',
-                    height: '28px',
+                    bottom: '0',
+                    right: '0',
+                    width: '30px',
+                    height: '30px',
                     borderRadius: '50%',
                     background: avatarUploading ? '#7CA982' : '#FFF',
-                    border: '2px solid #F2F2F7',
+                    border: '2px solid #FFF',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     cursor: avatarUploading ? 'wait' : 'pointer',
+                    boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
+                    padding: 0,
                   }}
                 >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3C3C43" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-                    <circle cx="12" cy="13" r="4" />
-                  </svg>
+                  {avatarUploading ? (
+                    <div style={{ width: '12px', height: '12px', borderRadius: '50%', border: '2px solid #FFF', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} />
+                  ) : (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3C3C43" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                      <circle cx="12" cy="13" r="4" />
+                    </svg>
+                  )}
                 </button>
               </div>
             </div>
@@ -597,6 +621,18 @@ export default function ProfilePage() {
           }}
         />
       )}
+
+      {/* AVATAR CROP MODAL */}
+      {avatarToCrop && (
+        <AvatarCropModal
+          imageSrc={avatarToCrop}
+          uploading={avatarUploading}
+          onClose={() => setAvatarToCrop(null)}
+          onConfirm={uploadCroppedAvatar}
+        />
+      )}
+
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
       <BottomNav />
     </div>
@@ -1754,6 +1790,234 @@ function SettingsRow({
             <polyline points="9 18 15 12 9 6" />
           </svg>
         )}
+      </div>
+    </div>
+  )
+}
+
+/* ============ AVATAR CROP MODAL ============ */
+function AvatarCropModal({
+  imageSrc,
+  uploading,
+  onClose,
+  onConfirm,
+}: {
+  imageSrc: string
+  uploading: boolean
+  onClose: () => void
+  onConfirm: (croppedDataUrl: string) => void
+}) {
+  const [zoom, setZoom] = useState(1)
+  const [offsetX, setOffsetX] = useState(0)
+  const [offsetY, setOffsetY] = useState(0)
+  const [imgSize, setImgSize] = useState<{ w: number; h: number } | null>(null)
+  const [dragging, setDragging] = useState(false)
+  const dragStart = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null)
+
+  const CANVAS_SIZE = 280
+
+  // Carica dimensioni immagine
+  useEffect(() => {
+    const img = new Image()
+    img.onload = () => {
+      setImgSize({ w: img.naturalWidth, h: img.naturalHeight })
+    }
+    img.src = imageSrc
+  }, [imageSrc])
+
+  // Calcola scala base per riempire il cerchio
+  const baseScale = imgSize ? Math.max(CANVAS_SIZE / imgSize.w, CANVAS_SIZE / imgSize.h) : 1
+  const finalScale = baseScale * zoom
+
+  const drawW = imgSize ? imgSize.w * finalScale : 0
+  const drawH = imgSize ? imgSize.h * finalScale : 0
+
+  // Centro l'immagine
+  const baseX = (CANVAS_SIZE - drawW) / 2
+  const baseY = (CANVAS_SIZE - drawH) / 2
+
+  // Limito offset entro i bordi
+  const maxOffsetX = Math.max(0, (drawW - CANVAS_SIZE) / 2)
+  const maxOffsetY = Math.max(0, (drawH - CANVAS_SIZE) / 2)
+  const clampedOffsetX = Math.max(-maxOffsetX, Math.min(maxOffsetX, offsetX))
+  const clampedOffsetY = Math.max(-maxOffsetY, Math.min(maxOffsetY, offsetY))
+
+  // Drag handlers (touch + mouse)
+  const onPointerDown = (clientX: number, clientY: number) => {
+    setDragging(true)
+    dragStart.current = { x: clientX, y: clientY, ox: clampedOffsetX, oy: clampedOffsetY }
+  }
+  const onPointerMove = (clientX: number, clientY: number) => {
+    if (!dragging || !dragStart.current) return
+    setOffsetX(dragStart.current.ox + (clientX - dragStart.current.x))
+    setOffsetY(dragStart.current.oy + (clientY - dragStart.current.y))
+  }
+  const onPointerUp = () => {
+    setDragging(false)
+    dragStart.current = null
+    setOffsetX(clampedOffsetX)
+    setOffsetY(clampedOffsetY)
+  }
+
+  // Conferma crop: disegna su canvas e ottieni dataUrl
+  const handleConfirm = () => {
+    if (!imgSize) return
+    const canvas = document.createElement('canvas')
+    canvas.width = 400
+    canvas.height = 400
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+
+    const img = new Image()
+    img.onload = () => {
+      // Coordinate sull'immagine originale corrispondenti al crop visibile (cerchio)
+      // Il cerchio visibile e' un quadrato CANVAS_SIZE x CANVAS_SIZE.
+      // L'immagine e' disegnata con scala finalScale, posizionata con (baseX + clampedOffsetX, baseY + clampedOffsetY).
+      // Il pixel (0, 0) del cerchio corrisponde al pixel (-(baseX + clampedOffsetX) / finalScale, -(baseY + clampedOffsetY) / finalScale) dell'originale.
+
+      const sx = -(baseX + clampedOffsetX) / finalScale
+      const sy = -(baseY + clampedOffsetY) / finalScale
+      const sw = CANVAS_SIZE / finalScale
+      const sh = CANVAS_SIZE / finalScale
+
+      // Sfondo bianco prima
+      ctx.fillStyle = '#FFF'
+      ctx.fillRect(0, 0, 400, 400)
+      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, 400, 400)
+
+      // Esporto JPEG compresso
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.9)
+      onConfirm(dataUrl)
+    }
+    img.src = imageSrc
+  }
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0,0,0,0.85)',
+        zIndex: 300,
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
+      <div
+        style={{
+          padding: '12px 16px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          color: '#FFF',
+        }}
+      >
+        <button
+          onClick={onClose}
+          disabled={uploading}
+          style={{ background: 'none', border: 'none', color: '#FFF', fontSize: '15px', cursor: uploading ? 'wait' : 'pointer', padding: '8px 0' }}
+        >
+          Annulla
+        </button>
+        <h3 style={{ fontSize: '16px', fontWeight: 700, margin: 0 }}>Ritaglia foto</h3>
+        <button
+          onClick={handleConfirm}
+          disabled={uploading || !imgSize}
+          style={{ background: 'none', border: 'none', color: uploading ? '#888' : '#7CA982', fontSize: '15px', fontWeight: 600, cursor: uploading ? 'wait' : 'pointer', padding: '8px 0' }}
+        >
+          {uploading ? 'Carico...' : 'Salva'}
+        </button>
+      </div>
+
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+        <div
+          onMouseDown={e => onPointerDown(e.clientX, e.clientY)}
+          onMouseMove={e => dragging && onPointerMove(e.clientX, e.clientY)}
+          onMouseUp={onPointerUp}
+          onMouseLeave={onPointerUp}
+          onTouchStart={e => onPointerDown(e.touches[0].clientX, e.touches[0].clientY)}
+          onTouchMove={e => onPointerMove(e.touches[0].clientX, e.touches[0].clientY)}
+          onTouchEnd={onPointerUp}
+          style={{
+            width: CANVAS_SIZE + 'px',
+            height: CANVAS_SIZE + 'px',
+            position: 'relative',
+            touchAction: 'none',
+            userSelect: 'none',
+            cursor: dragging ? 'grabbing' : 'grab',
+          }}
+        >
+          {/* Sfondo: l'immagine intera ma scura */}
+          {imgSize && (
+            <img
+              src={imageSrc}
+              alt=""
+              draggable={false}
+              style={{
+                position: 'absolute',
+                width: drawW + 'px',
+                height: drawH + 'px',
+                left: (baseX + clampedOffsetX) + 'px',
+                top: (baseY + clampedOffsetY) + 'px',
+                opacity: 0.4,
+                pointerEvents: 'none',
+              }}
+            />
+          )}
+
+          {/* Maschera circolare con foto chiara */}
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              borderRadius: '50%',
+              overflow: 'hidden',
+              boxShadow: '0 0 0 4px rgba(255,255,255,0.2)',
+            }}
+          >
+            {imgSize && (
+              <img
+                src={imageSrc}
+                alt=""
+                draggable={false}
+                style={{
+                  position: 'absolute',
+                  width: drawW + 'px',
+                  height: drawH + 'px',
+                  left: (baseX + clampedOffsetX) + 'px',
+                  top: (baseY + clampedOffsetY) + 'px',
+                  pointerEvents: 'none',
+                }}
+              />
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ padding: '20px 24px 30px', color: '#FFF' }}>
+        <p style={{ fontSize: '12px', textAlign: 'center', margin: '0 0 12px', opacity: 0.7 }}>
+          Trascina per spostare {'\u00B7'} usa lo slider per zoomare
+        </p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="8" y1="11" x2="14" y2="11" strokeLinecap="round" />
+          </svg>
+          <input
+            type="range"
+            min={1}
+            max={3}
+            step={0.05}
+            value={zoom}
+            onChange={e => setZoom(parseFloat(e.target.value))}
+            style={{ flex: 1, accentColor: '#7CA982' }}
+          />
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="8" y1="11" x2="14" y2="11" strokeLinecap="round" />
+            <line x1="11" y1="8" x2="11" y2="14" strokeLinecap="round" />
+          </svg>
+        </div>
       </div>
     </div>
   )

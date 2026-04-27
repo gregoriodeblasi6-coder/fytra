@@ -12,6 +12,7 @@ type Comment = {
   text: string
   likes_count: number
   created_at: string
+  updated_at?: string | null
   profiles: {
     id: string
     username: string | null
@@ -67,7 +68,11 @@ export default function CommentsSheet({
   const onTouchMove = (e: React.TouchEvent) => {
     if (dragStartY.current === null) return
     const diff = e.touches[0].clientY - dragStartY.current
-    if (diff > 0) setDragOffsetY(diff)
+    if (diff > 0) {
+      // Blocco il pull-to-refresh nativo del browser
+      try { e.preventDefault() } catch {}
+      setDragOffsetY(diff)
+    }
   }
   const onTouchEnd = () => {
     if (dragOffsetY > 100) {
@@ -76,6 +81,24 @@ export default function CommentsSheet({
     setDragOffsetY(0)
     dragStartY.current = null
   }
+
+  // Lock total: preveniamo pull-to-refresh anche se touch parte da fuori il drag handle
+  useEffect(() => {
+    const block = (e: TouchEvent) => {
+      // Se il touch parte e l'utente trascina giu' su modale aperta, bloccala
+      // (quando la pagina sotto e' a scroll 0 il browser fa refresh: lo evitiamo)
+      const target = e.target as HTMLElement
+      if (sheetRef.current?.contains(target)) {
+        // Lascio passare se il touch e' dentro la modale (handler sopra gestiscono swipe sul drag bar)
+        return
+      }
+      e.preventDefault()
+    }
+    document.addEventListener('touchmove', block, { passive: false })
+    return () => {
+      document.removeEventListener('touchmove', block)
+    }
+  }, [])
 
   // Mention autocomplete: rileva @ digitato
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -114,11 +137,59 @@ export default function CommentsSheet({
     inputRef.current?.focus()
   }
 
+  // Click su una @menzione → cerca user e naviga al profilo
+  const handleMentionClick = async (username: string) => {
+    const { data } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('username', username)
+      .maybeSingle()
+    if (data) {
+      onClose()
+      if (data.id === currentUserId) {
+        router.push('/profile')
+      } else {
+        router.push('/profile/' + data.id)
+      }
+    }
+  }
+
+  // Modifica commento
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null)
+  const [editText, setEditText] = useState('')
+
+  const startEdit = (c: Comment) => {
+    setEditingCommentId(c.id)
+    setEditText(c.text)
+  }
+
+  const cancelEdit = () => {
+    setEditingCommentId(null)
+    setEditText('')
+  }
+
+  const saveEdit = async () => {
+    if (!editingCommentId || !editText.trim()) return
+    const { error } = await supabase
+      .from('comments')
+      .update({ text: editText.trim(), updated_at: new Date().toISOString() })
+      .eq('id', editingCommentId)
+      .eq('user_id', currentUserId)
+
+    if (!error) {
+      setEditingCommentId(null)
+      setEditText('')
+      await loadComments()
+    } else {
+      alert('Errore modifica: ' + error.message)
+    }
+  }
+
   const loadComments = async () => {
     setLoading(true)
     const { data, error } = await supabase
       .from('comments')
-      .select('id, post_id, user_id, parent_id, text, likes_count, created_at, profiles!comments_user_id_profiles_fkey(id, username, full_name, avatar_url)')
+      .select('id, post_id, user_id, parent_id, text, likes_count, created_at, updated_at, profiles!comments_user_id_profiles_fkey(id, username, full_name, avatar_url)')
       .eq('post_id', postId)
       .order('created_at', { ascending: true })
 
@@ -243,6 +314,7 @@ export default function CommentsSheet({
           flexDirection: 'column',
           transform: dragOffsetY > 0 ? 'translateY(' + dragOffsetY + 'px)' : 'none',
           transition: dragOffsetY === 0 ? 'transform 0.2s' : 'none',
+          overscrollBehavior: 'contain',
         }}
       >
         {/* Header */}
@@ -257,6 +329,7 @@ export default function CommentsSheet({
             alignItems: 'center',
             justifyContent: 'space-between',
             position: 'relative',
+            touchAction: 'none',
           }}
         >
           {/* Drag handle (centrato) */}
@@ -313,17 +386,24 @@ export default function CommentsSheet({
                 isReply={false}
                 liked={likedIds.has(c.id)}
                 currentUserId={currentUserId}
+                editing={editingCommentId === c.id}
+                editText={editText}
+                onEditTextChange={setEditText}
+                onSaveEdit={saveEdit}
+                onCancelEdit={cancelEdit}
                 onReply={() => {
                   setReplyTo(c)
                   setTimeout(() => inputRef.current?.focus(), 100)
                 }}
                 onLike={() => toggleCommentLike(c.id)}
                 onDelete={() => deleteComment(c)}
+                onEdit={() => startEdit(c)}
                 onGoToProfile={(userId) => {
                   onClose()
                   if (userId === currentUserId) router.push('/profile')
                   else router.push('/profile/' + userId)
                 }}
+                onMentionClick={handleMentionClick}
               />
               {replyMap.get(c.id)?.map(r => (
                 <CommentRow
@@ -332,17 +412,24 @@ export default function CommentsSheet({
                   isReply={true}
                   liked={likedIds.has(r.id)}
                   currentUserId={currentUserId}
+                  editing={editingCommentId === r.id}
+                  editText={editText}
+                  onEditTextChange={setEditText}
+                  onSaveEdit={saveEdit}
+                  onCancelEdit={cancelEdit}
                   onReply={() => {
-                    setReplyTo(c)
+                    setReplyTo(r)
                     setTimeout(() => inputRef.current?.focus(), 100)
                   }}
                   onLike={() => toggleCommentLike(r.id)}
                   onDelete={() => deleteComment(r)}
+                  onEdit={() => startEdit(r)}
                   onGoToProfile={(userId) => {
                     onClose()
                     if (userId === currentUserId) router.push('/profile')
                     else router.push('/profile/' + userId)
                   }}
+                  onMentionClick={handleMentionClick}
                 />
               ))}
             </div>
@@ -520,25 +607,42 @@ function CommentRow({
   isReply,
   liked,
   currentUserId,
+  editing,
+  editText,
+  onEditTextChange,
+  onSaveEdit,
+  onCancelEdit,
   onReply,
   onLike,
   onDelete,
+  onEdit,
   onGoToProfile,
+  onMentionClick,
 }: {
   comment: Comment
   isReply: boolean
   liked: boolean
   currentUserId: string
+  editing: boolean
+  editText: string
+  onEditTextChange: (v: string) => void
+  onSaveEdit: () => void
+  onCancelEdit: () => void
   onReply: () => void
   onLike: () => void
   onDelete: () => void
+  onEdit: () => void
   onGoToProfile: (userId: string) => void
+  onMentionClick: (username: string) => void
 }) {
   const username = comment.profiles?.username || 'utente'
   const fullName = comment.profiles?.full_name || username
   const avatar = getAvatarColor(username)
   const time = formatTimeShort(comment.created_at)
   const isOwn = comment.user_id === currentUserId
+  // Edited: se updated_at differisce da created_at di > 2 secondi
+  const isEdited = comment.updated_at &&
+    Math.abs(new Date(comment.updated_at).getTime() - new Date(comment.created_at).getTime()) > 2000
 
   return (
     <div
@@ -603,32 +707,90 @@ function CommentRow({
           >
             {fullName}
           </button>
-          <p style={{ fontSize: '13px', color: '#000', margin: 0, lineHeight: 1.4, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-            {renderTextWithMentions(comment.text)}
-          </p>
+          {editing ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <textarea
+                value={editText}
+                onChange={e => onEditTextChange(e.target.value)}
+                autoFocus
+                rows={2}
+                style={{
+                  width: '100%',
+                  padding: '8px 10px',
+                  border: '1.5px solid #7CA982',
+                  borderRadius: '10px',
+                  fontSize: '13px',
+                  color: '#000',
+                  outline: 'none',
+                  fontFamily: 'inherit',
+                  resize: 'vertical',
+                  boxSizing: 'border-box',
+                  background: '#FFF',
+                }}
+              />
+              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                <button
+                  onClick={onCancelEdit}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontSize: '12px',
+                    color: '#8E8E93',
+                    padding: '4px 8px',
+                  }}
+                >
+                  Annulla
+                </button>
+                <button
+                  onClick={onSaveEdit}
+                  disabled={!editText.trim()}
+                  style={{
+                    background: editText.trim() ? '#7CA982' : '#C7C7CC',
+                    border: 'none',
+                    cursor: editText.trim() ? 'pointer' : 'default',
+                    fontSize: '12px',
+                    color: '#FFF',
+                    fontWeight: 600,
+                    padding: '5px 14px',
+                    borderRadius: '8px',
+                  }}
+                >
+                  Salva
+                </button>
+              </div>
+            </div>
+          ) : (
+            <p style={{ fontSize: '13px', color: '#000', margin: 0, lineHeight: 1.4, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+              {renderTextWithMentions(comment.text, onMentionClick)}
+              {isEdited && (
+                <span style={{ fontSize: '10px', color: '#8E8E93', marginLeft: '6px', fontStyle: 'italic' }}>(modificato)</span>
+              )}
+            </p>
+          )}
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '4px 12px', fontSize: '11px', color: '#8E8E93' }}>
-          <span>{time}</span>
-          <button
-            onClick={onLike}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-              fontSize: '11px',
-              fontWeight: 600,
-              color: liked ? '#FF3B30' : '#8E8E93',
-              padding: 0,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '3px',
-            }}
-          >
-            {liked ? 'Piace' : 'Mi piace'}
-            {comment.likes_count > 0 && <span>({comment.likes_count})</span>}
-          </button>
-          {!isReply && (
+        {!editing && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '4px 12px', fontSize: '11px', color: '#8E8E93' }}>
+            <span>{time}</span>
+            <button
+              onClick={onLike}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: '11px',
+                fontWeight: 600,
+                color: liked ? '#FF3B30' : '#8E8E93',
+                padding: 0,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '3px',
+              }}
+            >
+              {liked ? 'Piace' : 'Mi piace'}
+              {comment.likes_count > 0 && <span>({comment.likes_count})</span>}
+            </button>
             <button
               onClick={onReply}
               style={{
@@ -643,23 +805,38 @@ function CommentRow({
             >
               Rispondi
             </button>
-          )}
-          {isOwn && (
-            <button
-              onClick={onDelete}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                cursor: 'pointer',
-                fontSize: '11px',
-                color: '#FF3B30',
-                padding: 0,
-              }}
-            >
-              Elimina
-            </button>
-          )}
-        </div>
+            {isOwn && (
+              <button
+                onClick={onEdit}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '11px',
+                  color: '#007AFF',
+                  padding: 0,
+                }}
+              >
+                Modifica
+              </button>
+            )}
+            {isOwn && (
+              <button
+                onClick={onDelete}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '11px',
+                  color: '#FF3B30',
+                  padding: 0,
+                }}
+              >
+                Elimina
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )
@@ -690,13 +867,29 @@ function formatTimeShort(dateStr: string): string {
   return d.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })
 }
 
-// Renderizza il testo del commento evidenziando @menzioni come link verdi
-function renderTextWithMentions(text: string): React.ReactNode {
+// Renderizza il testo del commento evidenziando @menzioni come link cliccabili
+function renderTextWithMentions(text: string, onMentionClick?: (username: string) => void): React.ReactNode {
   const parts = text.split(/(@\w+)/g)
   return parts.map((p, i) => {
     if (p.startsWith('@') && p.length > 1) {
+      const username = p.slice(1)
       return (
-        <span key={i} style={{ color: '#7CA982', fontWeight: 600 }}>{p}</span>
+        <span
+          key={i}
+          onClick={(e) => {
+            if (onMentionClick) {
+              e.stopPropagation()
+              onMentionClick(username)
+            }
+          }}
+          style={{
+            color: '#7CA982',
+            fontWeight: 600,
+            cursor: onMentionClick ? 'pointer' : 'default',
+          }}
+        >
+          {p}
+        </span>
       )
     }
     return <span key={i}>{p}</span>
