@@ -52,12 +52,27 @@ export default function CommentsSheet({
     loadComments()
   }, [postId])
 
-  // Scroll lock body sotto la modale
+  // Scroll lock body sotto la modale — preserva scroll position
   useEffect(() => {
+    const scrollY = window.scrollY
+    const prevPosition = document.body.style.position
+    const prevTop = document.body.style.top
+    const prevWidth = document.body.style.width
     const prevOverflow = document.body.style.overflow
+
+    // Tecnica iOS-safe: blocca scroll body via position fixed, ricorda scroll
+    document.body.style.position = 'fixed'
+    document.body.style.top = '-' + scrollY + 'px'
+    document.body.style.width = '100%'
     document.body.style.overflow = 'hidden'
+
     return () => {
+      document.body.style.position = prevPosition
+      document.body.style.top = prevTop
+      document.body.style.width = prevWidth
       document.body.style.overflow = prevOverflow
+      // Ripristina la scroll position
+      window.scrollTo(0, scrollY)
     }
   }, [])
 
@@ -81,24 +96,6 @@ export default function CommentsSheet({
     setDragOffsetY(0)
     dragStartY.current = null
   }
-
-  // Lock total: preveniamo pull-to-refresh anche se touch parte da fuori il drag handle
-  useEffect(() => {
-    const block = (e: TouchEvent) => {
-      // Se il touch parte e l'utente trascina giu' su modale aperta, bloccala
-      // (quando la pagina sotto e' a scroll 0 il browser fa refresh: lo evitiamo)
-      const target = e.target as HTMLElement
-      if (sheetRef.current?.contains(target)) {
-        // Lascio passare se il touch e' dentro la modale (handler sopra gestiscono swipe sul drag bar)
-        return
-      }
-      e.preventDefault()
-    }
-    document.addEventListener('touchmove', block, { passive: false })
-    return () => {
-      document.removeEventListener('touchmove', block)
-    }
-  }, [])
 
   // Mention autocomplete: rileva @ digitato
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
