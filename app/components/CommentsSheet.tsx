@@ -38,9 +38,81 @@ export default function CommentsSheet({
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set())
   const inputRef = useRef<HTMLInputElement>(null)
 
+  // Tag autocomplete (digitando @ apre dropdown utenti)
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null)
+  const [mentionResults, setMentionResults] = useState<Array<{ id: string; username: string | null; full_name: string | null; avatar_url: string | null }>>([])
+
+  // Swipe to close
+  const sheetRef = useRef<HTMLDivElement>(null)
+  const dragStartY = useRef<number | null>(null)
+  const [dragOffsetY, setDragOffsetY] = useState(0)
+
   useEffect(() => {
     loadComments()
   }, [postId])
+
+  // Scroll lock body sotto la modale
+  useEffect(() => {
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = prevOverflow
+    }
+  }, [])
+
+  // Swipe down handlers (touch on header drag bar)
+  const onTouchStart = (e: React.TouchEvent) => {
+    dragStartY.current = e.touches[0].clientY
+  }
+  const onTouchMove = (e: React.TouchEvent) => {
+    if (dragStartY.current === null) return
+    const diff = e.touches[0].clientY - dragStartY.current
+    if (diff > 0) setDragOffsetY(diff)
+  }
+  const onTouchEnd = () => {
+    if (dragOffsetY > 100) {
+      onClose()
+    }
+    setDragOffsetY(0)
+    dragStartY.current = null
+  }
+
+  // Mention autocomplete: rileva @ digitato
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const v = e.target.value
+    setNewComment(v)
+
+    // Cerca l'ultima occorrenza di @ non chiusa da spazio
+    const m = v.match(/@(\w*)$/)
+    if (m) {
+      const q = m[1]
+      setMentionQuery(q)
+      if (q.length >= 1) searchMentions(q)
+      else setMentionResults([])
+    } else {
+      setMentionQuery(null)
+      setMentionResults([])
+    }
+  }
+
+  const searchMentions = async (q: string) => {
+    const { data } = await supabase
+      .from('profiles')
+      .select('id, username, full_name, avatar_url')
+      .ilike('username', q + '%')
+      .neq('id', currentUserId)
+      .limit(5)
+    setMentionResults((data as any) || [])
+  }
+
+  const insertMention = (username: string) => {
+    // Sostituisce l'ultima @parola con @username (con spazio dopo)
+    const newText = newComment.replace(/@\w*$/, '@' + username + ' ')
+    setNewComment(newText)
+    setMentionQuery(null)
+    setMentionResults([])
+    inputRef.current?.focus()
+  }
 
   const loadComments = async () => {
     setLoading(true)
@@ -74,11 +146,31 @@ export default function CommentsSheet({
     if (!newComment.trim() || sending) return
     setSending(true)
 
+    // Logica risposte: parent_id sempre punta al root comment (mai a una risposta)
+    // Se l'utente sta rispondendo a una risposta, prependo "@username " al testo
+    // cosi' visivamente sai a chi rispondi, ma struttura DB resta a 2 livelli (root + risposte)
+    let finalText = newComment.trim()
+    let parentId: string | null = null
+
+    if (replyTo) {
+      // Se sto rispondendo a un root comment, parent_id = replyTo.id
+      // Se sto rispondendo a una risposta, parent_id = replyTo.parent_id (il root)
+      parentId = replyTo.parent_id || replyTo.id
+
+      // Se rispondo a una risposta, prependo @username automaticamente (se non gia' presente)
+      if (replyTo.parent_id) {
+        const username = replyTo.profiles?.username
+        if (username && !finalText.startsWith('@' + username)) {
+          finalText = '@' + username + ' ' + finalText
+        }
+      }
+    }
+
     const { error } = await supabase.from('comments').insert({
       post_id: postId,
       user_id: currentUserId,
-      parent_id: replyTo?.id || null,
-      text: newComment.trim(),
+      parent_id: parentId,
+      text: finalText,
     })
 
     if (!error) {
@@ -138,6 +230,7 @@ export default function CommentsSheet({
       onClick={onClose}
     >
       <div
+        ref={sheetRef}
         onClick={e => e.stopPropagation()}
         style={{
           background: '#F2F2F7',
@@ -148,23 +241,54 @@ export default function CommentsSheet({
           borderTopRightRadius: '20px',
           display: 'flex',
           flexDirection: 'column',
+          transform: dragOffsetY > 0 ? 'translateY(' + dragOffsetY + 'px)' : 'none',
+          transition: dragOffsetY === 0 ? 'transform 0.2s' : 'none',
         }}
       >
         {/* Header */}
         <div
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
           style={{
             padding: '10px 16px 12px',
             borderBottom: '0.5px solid rgba(0,0,0,0.08)',
             display: 'flex',
-            flexDirection: 'column',
             alignItems: 'center',
-            gap: '6px',
+            justifyContent: 'space-between',
+            position: 'relative',
           }}
         >
-          <div style={{ width: '36px', height: '4px', borderRadius: '2px', background: 'rgba(0,0,0,0.2)' }} />
-          <h3 style={{ fontSize: '16px', fontWeight: 700, margin: 0 }}>
+          {/* Drag handle (centrato) */}
+          <div style={{ position: 'absolute', top: '6px', left: '50%', transform: 'translateX(-50%)', width: '36px', height: '4px', borderRadius: '2px', background: 'rgba(0,0,0,0.2)' }} />
+
+          <div style={{ width: '32px' }} />
+          <h3 style={{ fontSize: '16px', fontWeight: 700, margin: '12px 0 0' }}>
             Commenti {comments.length > 0 && <span style={{ color: '#8E8E93', fontWeight: 500 }}>({comments.length})</span>}
           </h3>
+          <button
+            onClick={onClose}
+            aria-label="Chiudi"
+            style={{
+              width: '32px',
+              height: '32px',
+              borderRadius: '8px',
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              color: '#3C3C43',
+              padding: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginTop: '8px',
+            }}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
         </div>
 
         {/* Lista commenti */}
@@ -232,8 +356,78 @@ export default function CommentsSheet({
             borderTop: '0.5px solid rgba(0,0,0,0.08)',
             padding: '10px 14px',
             paddingBottom: 'calc(10px + env(safe-area-inset-bottom, 0px))',
+            position: 'relative',
           }}
         >
+          {/* Mention autocomplete dropdown */}
+          {mentionQuery !== null && mentionResults.length > 0 && (
+            <div
+              style={{
+                position: 'absolute',
+                bottom: '100%',
+                left: '8px',
+                right: '8px',
+                background: '#FFF',
+                borderRadius: '12px',
+                boxShadow: '0 -4px 12px rgba(0,0,0,0.08)',
+                border: '0.5px solid rgba(0,0,0,0.06)',
+                maxHeight: '200px',
+                overflowY: 'auto',
+                marginBottom: '4px',
+                zIndex: 5,
+              }}
+            >
+              {mentionResults.map(u => {
+                const username = u.username || 'utente'
+                return (
+                  <button
+                    key={u.id}
+                    onClick={() => insertMention(username)}
+                    style={{
+                      width: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      padding: '8px 12px',
+                      background: 'transparent',
+                      border: 'none',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: '30px',
+                        height: '30px',
+                        borderRadius: '50%',
+                        background: u.avatar_url ? 'transparent' : '#7CA982',
+                        color: '#FFF',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '12px',
+                        fontWeight: 700,
+                        overflow: 'hidden',
+                        flexShrink: 0,
+                      }}
+                    >
+                      {u.avatar_url ? (
+                        <img src={u.avatar_url} alt={username} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ) : (
+                        username[0].toUpperCase()
+                      )}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontSize: '13px', fontWeight: 600, color: '#000', margin: 0 }}>@{username}</p>
+                      {u.full_name && (
+                        <p style={{ fontSize: '11px', color: '#8E8E93', margin: '1px 0 0' }}>{u.full_name}</p>
+                      )}
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          )}
           {replyTo && (
             <div
               style={{
@@ -274,7 +468,7 @@ export default function CommentsSheet({
               ref={inputRef}
               type="text"
               value={newComment}
-              onChange={e => setNewComment(e.target.value)}
+              onChange={handleInputChange}
               onKeyDown={e => { if (e.key === 'Enter') sendComment() }}
               placeholder={replyTo ? 'Scrivi la tua risposta...' : 'Aggiungi un commento...'}
               style={{
@@ -410,7 +604,7 @@ function CommentRow({
             {fullName}
           </button>
           <p style={{ fontSize: '13px', color: '#000', margin: 0, lineHeight: 1.4, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-            {comment.text}
+            {renderTextWithMentions(comment.text)}
           </p>
         </div>
 
@@ -494,4 +688,17 @@ function formatTimeShort(dateStr: string): string {
   if (diff < 86400) return Math.floor(diff / 3600) + 'h'
   if (diff < 604800) return Math.floor(diff / 86400) + 'g'
   return d.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })
+}
+
+// Renderizza il testo del commento evidenziando @menzioni come link verdi
+function renderTextWithMentions(text: string): React.ReactNode {
+  const parts = text.split(/(@\w+)/g)
+  return parts.map((p, i) => {
+    if (p.startsWith('@') && p.length > 1) {
+      return (
+        <span key={i} style={{ color: '#7CA982', fontWeight: 600 }}>{p}</span>
+      )
+    }
+    return <span key={i}>{p}</span>
+  })
 }

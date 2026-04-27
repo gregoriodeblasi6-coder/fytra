@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/AuthContext'
 import { useRouter } from 'next/navigation'
@@ -49,6 +49,59 @@ export default function ProfilePage() {
   const [showSettings, setShowSettings] = useState(false)
   const [saving, setSaving] = useState(false)
   const [userListMode, setUserListMode] = useState<null | 'followers' | 'following'>(null)
+  const [avatarUploading, setAvatarUploading] = useState(false)
+  const avatarFileRef = useRef<HTMLInputElement>(null)
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !user) return
+
+    // Verifica che sia un'immagine e che non sia troppo grossa (<5MB)
+    if (!file.type.startsWith('image/')) {
+      alert('Il file deve essere un\'immagine.')
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      alert('La foto e\' troppo grande (max 5MB).')
+      return
+    }
+
+    setAvatarUploading(true)
+    try {
+      // Upload nel folder dell'user (richiesto dalle policy storage)
+      const ext = file.name.split('.').pop() || 'jpg'
+      const filePath = user!.id + '/avatar-' + Date.now() + '.' + ext
+
+      const { error: uploadErr } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file, { upsert: true })
+
+      if (uploadErr) throw uploadErr
+
+      // URL pubblico
+      const { data: urlData } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath)
+
+      const publicUrl = urlData.publicUrl
+
+      // Aggiorna profilo con nuova URL
+      const { error: updErr } = await supabase
+        .from('profiles')
+        .update({ avatar_url: publicUrl })
+        .eq('id', user!.id)
+
+      if (updErr) throw updErr
+
+      // Refresh locale
+      setProfile(p => p ? { ...p, avatar_url: publicUrl } : p)
+    } catch (err: any) {
+      alert('Errore caricamento foto: ' + (err.message || 'errore generico'))
+    } finally {
+      setAvatarUploading(false)
+      if (avatarFileRef.current) avatarFileRef.current.value = ''
+    }
+  }
 
   const [editForm, setEditForm] = useState<Partial<Profile>>({})
 
@@ -238,7 +291,7 @@ export default function ProfilePage() {
                   width: '90px',
                   height: '90px',
                   borderRadius: '50%',
-                  background: avatar.bg,
+                  background: profile?.avatar_url ? 'transparent' : avatar.bg,
                   color: avatar.text,
                   display: 'flex',
                   alignItems: 'center',
@@ -247,12 +300,31 @@ export default function ProfilePage() {
                   fontWeight: 700,
                   boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
                   position: 'relative',
+                  overflow: 'hidden',
                 }}
               >
-                {username[0].toUpperCase()}
+                {profile?.avatar_url ? (
+                  <img
+                    src={profile.avatar_url}
+                    alt={username}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                ) : (
+                  username[0].toUpperCase()
+                )}
+
+                {/* Bottone upload (file picker invisibile sopra) */}
+                <input
+                  ref={avatarFileRef}
+                  type="file"
+                  accept="image/*"
+                  style={{ display: 'none' }}
+                  onChange={handleAvatarChange}
+                />
                 <button
-                  onClick={() => setEditMode(true)}
-                  aria-label="Modifica foto"
+                  onClick={() => avatarFileRef.current?.click()}
+                  aria-label="Cambia foto profilo"
+                  disabled={avatarUploading}
                   style={{
                     position: 'absolute',
                     bottom: '2px',
@@ -260,12 +332,12 @@ export default function ProfilePage() {
                     width: '28px',
                     height: '28px',
                     borderRadius: '50%',
-                    background: '#FFF',
+                    background: avatarUploading ? '#7CA982' : '#FFF',
                     border: '2px solid #F2F2F7',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    cursor: 'pointer',
+                    cursor: avatarUploading ? 'wait' : 'pointer',
                   }}
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3C3C43" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -494,6 +566,19 @@ export default function ProfilePage() {
       {showSettings && (
         <SettingsModal
           email={user?.email || ''}
+          isPrivate={!!profile?.is_private}
+          onTogglePrivate={async (val) => {
+            if (!user) return
+            const { error } = await supabase
+              .from('profiles')
+              .update({ is_private: val })
+              .eq('id', user!.id)
+            if (!error) {
+              setProfile(p => p ? { ...p, is_private: val } : p)
+            } else {
+              alert('Errore aggiornamento: ' + error.message)
+            }
+          }}
           onClose={() => setShowSettings(false)}
           onLogout={handleLogout}
         />
@@ -1438,7 +1523,19 @@ function EditField({
 
 /* ================= SETTINGS MODAL ================= */
 
-function SettingsModal({ email, onClose, onLogout }: { email: string; onClose: () => void; onLogout: () => void }) {
+function SettingsModal({
+  email,
+  isPrivate,
+  onTogglePrivate,
+  onClose,
+  onLogout,
+}: {
+  email: string
+  isPrivate: boolean
+  onTogglePrivate: (v: boolean) => void
+  onClose: () => void
+  onLogout: () => void
+}) {
   return (
     <div
       style={{
@@ -1461,27 +1558,55 @@ function SettingsModal({ email, onClose, onLogout }: { email: string; onClose: (
           borderTopLeftRadius: '20px',
           borderTopRightRadius: '20px',
           paddingBottom: '32px',
-          maxHeight: '80vh',
+          maxHeight: '85vh',
           overflowY: 'auto',
+          display: 'flex',
+          flexDirection: 'column',
         }}
       >
+        {/* HEADER stile uniforme con notifiche */}
         <div
           style={{
-            padding: '10px 20px',
+            position: 'sticky',
+            top: 0,
+            background: 'rgba(242, 242, 247, 0.92)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            zIndex: 1,
+            padding: '12px 16px',
             borderBottom: '0.5px solid rgba(0,0,0,0.08)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
           }}
         >
-          <div style={{ width: '60px' }} />
-          <h3 style={{ fontSize: '16px', fontWeight: 700, margin: 0 }}>Impostazioni</h3>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#007AFF', fontSize: '15px', fontWeight: 500, cursor: 'pointer', width: '60px', textAlign: 'right' }}>
-            Fine
+          <button
+            onClick={onClose}
+            aria-label="Chiudi"
+            style={{
+              width: '32px',
+              height: '32px',
+              borderRadius: '8px',
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              color: '#007AFF',
+              padding: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
           </button>
+          <h3 style={{ fontSize: '17px', fontWeight: 700, margin: 0 }}>Impostazioni</h3>
+          <div style={{ width: '32px' }} />
         </div>
 
-        <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        <div style={{ padding: '16px 16px 24px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <SettingsGroup title="Account">
             <SettingsRow label="Email" value={email} readOnly />
             <SettingsRow label="Cambia password" action />
@@ -1489,7 +1614,12 @@ function SettingsModal({ email, onClose, onLogout }: { email: string; onClose: (
           </SettingsGroup>
 
           <SettingsGroup title="Privacy">
-            <SettingsRow label="Account privato" toggle defaultOn={false} />
+            <SettingsRow
+              label="Account privato"
+              toggle
+              isOn={isPrivate}
+              onToggle={onTogglePrivate}
+            />
             <SettingsRow label="Notifiche push" toggle defaultOn={true} />
             <SettingsRow label="Notifiche email" toggle defaultOn={true} />
           </SettingsGroup>
@@ -1513,29 +1643,15 @@ function SettingsModal({ email, onClose, onLogout }: { email: string; onClose: (
               padding: '14px',
               background: '#FFF',
               border: 'none',
-              borderRadius: '12px',
+              borderRadius: '14px',
               fontSize: '15px',
               fontWeight: 600,
-              color: '#DC2626',
+              color: '#FF3B30',
               cursor: 'pointer',
-              marginTop: '8px',
               boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
             }}
           >
             Esci dall account
-          </button>
-
-          <button
-            style={{
-              padding: '14px',
-              background: 'transparent',
-              border: 'none',
-              fontSize: '13px',
-              color: '#8E8E93',
-              cursor: 'pointer',
-            }}
-          >
-            Elimina account
           </button>
         </div>
       </div>
@@ -1563,6 +1679,8 @@ function SettingsRow({
   readOnly,
   toggle,
   defaultOn,
+  isOn,
+  onToggle,
   onClick,
 }: {
   label: string
@@ -1571,9 +1689,22 @@ function SettingsRow({
   readOnly?: boolean
   toggle?: boolean
   defaultOn?: boolean
+  isOn?: boolean
+  onToggle?: (newValue: boolean) => void
   onClick?: () => void
 }) {
-  const [on, setOn] = useState(defaultOn || false)
+  const [internalOn, setInternalOn] = useState(defaultOn || false)
+  // Se isOn e onToggle sono forniti, modalita' controllata. Altrimenti uso internal state.
+  const on = typeof isOn === 'boolean' ? isOn : internalOn
+
+  const handleToggle = () => {
+    if (onToggle) {
+      onToggle(!on)
+    } else {
+      setInternalOn(!on)
+    }
+  }
+
   return (
     <div
       onClick={onClick}
@@ -1591,7 +1722,7 @@ function SettingsRow({
         {value && <span style={{ fontSize: '14px', color: '#8E8E93' }}>{value}</span>}
         {toggle && (
           <button
-            onClick={() => setOn(!on)}
+            onClick={handleToggle}
             style={{
               width: '50px',
               height: '30px',
