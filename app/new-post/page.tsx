@@ -21,6 +21,15 @@ type Ingredient = {
   source: 'ai' | 'manual' | 'barcode'
 }
 
+// Utente taggato in un post (mention per pasti, coworkout per allenamenti)
+type TaggedUser = {
+  id: string
+  username: string | null
+  full_name: string | null
+  avatar_url: string | null
+  tag_type: 'mention' | 'coworkout'
+}
+
 // Profilo bevanda: unita' domestiche disponibili per quella bevanda
 // Restituisce null se l'alimento NON e' una bevanda (usa grammi normali)
 type DrinkUnit = { label: string; ml: number; emoji: string }
@@ -627,6 +636,8 @@ function MealFlow({
   const [isPrivate, setIsPrivate] = useState(false)
   const [aiAnalyzed, setAiAnalyzed] = useState(false)
   const [aiLoading, setAiLoading] = useState(false)
+  const [taggedUsers, setTaggedUsers] = useState<TaggedUser[]>([])
+  const [showTagModal, setShowTagModal] = useState(false)
   const [customDate, setCustomDate] = useState<string>(() => {
     // default: adesso in formato datetime-local
     const now = new Date()
@@ -773,6 +784,21 @@ function MealFlow({
       if (ingErr) {
         // Post salvato ma ingredienti no - continuo comunque
         console.error('Errore salvataggio ingredienti:', ingErr)
+      }
+    }
+
+    // Salva i tag (menzioni per pasti)
+    if (taggedUsers.length > 0) {
+      const tagRows = taggedUsers.map(tu => ({
+        post_id: postData.id,
+        user_id: tu.id,
+        tagger_id: user!.id,
+        tag_type: 'mention' as const,
+        status: 'accepted' as const, // Le menzioni sono auto-accettate (no approvazione richiesta)
+      }))
+      const { error: tagErr } = await supabase.from('post_tags').insert(tagRows)
+      if (tagErr) {
+        console.error('Errore salvataggio tag:', tagErr)
       }
     }
 
@@ -1135,6 +1161,14 @@ function MealFlow({
         </div>
       )}
 
+      {/* TAG AMICI */}
+      <TagFriendsBlock
+        taggedUsers={taggedUsers}
+        onOpenModal={() => setShowTagModal(true)}
+        onRemove={uid => setTaggedUsers(taggedUsers.filter(t => t.id !== uid))}
+        tagTypeLabel="con"
+      />
+
       {/* DATA/ORA PERSONALIZZATA */}
       <DateTimePicker value={customDate} onChange={setCustomDate} />
 
@@ -1157,6 +1191,19 @@ function MealFlow({
         <AddIngredientModal
           onClose={() => setShowAddIngredient(false)}
           onAdd={handleAddIngredient}
+        />
+      )}
+
+      {showTagModal && user && (
+        <TagSelectionModal
+          currentUserId={user.id}
+          alreadyTagged={taggedUsers}
+          tagType="mention"
+          onClose={() => setShowTagModal(false)}
+          onConfirm={users => {
+            setTaggedUsers(users)
+            setShowTagModal(false)
+          }}
         />
       )}
 
@@ -1887,6 +1934,8 @@ function WorkoutFlow({
   const [heartrate, setHeartrate] = useState('')
   const [notes, setNotes] = useState('')
   const [isPrivate, setIsPrivate] = useState(false)
+  const [taggedUsers, setTaggedUsers] = useState<TaggedUser[]>([])
+  const [showTagModal, setShowTagModal] = useState(false)
   const [customDate, setCustomDate] = useState<string>(() => {
     const now = new Date()
     const pad = (n: number) => String(n).padStart(2, '0')
@@ -1966,7 +2015,7 @@ function WorkoutFlow({
           || secondaryTypes.find(w => w.v === workoutType)?.l
           || workoutType)
 
-    const { error: insertError } = await supabase.from('posts').insert({
+    const { data: postData, error: insertError } = await supabase.from('posts').insert({
       user_id: user!.id,
       type: 'allenamento',
       is_private: isPrivate,
@@ -1977,12 +2026,26 @@ function WorkoutFlow({
       workout_heartrate: heartrate ? parseInt(heartrate) : null,
       workout_notes: notes || null,
       ...(createdAt ? { created_at: createdAt } : {}),
-    })
+    }).select('id').single()
 
     if (insertError) {
       onError('Errore salvataggio: ' + insertError.message)
       onSaving(false)
     } else {
+      // Salva tag (Round 3a: tutti come 'pending' per coworkout, status conferma in 3b)
+      if (taggedUsers.length > 0 && postData) {
+        const tagRows = taggedUsers.map(tu => ({
+          post_id: postData.id,
+          user_id: tu.id,
+          tagger_id: user!.id,
+          tag_type: tu.tag_type,
+          status: tu.tag_type === 'mention' ? 'accepted' : 'pending',
+        }))
+        const { error: tagErr } = await supabase.from('post_tags').insert(tagRows)
+        if (tagErr) {
+          console.error('Errore salvataggio tag:', tagErr)
+        }
+      }
       router.push('/feed')
     }
   }
@@ -2287,6 +2350,15 @@ function WorkoutFlow({
             />
           </div>
 
+          {/* TAG AMICI (CO-ALLENAMENTO O MENZIONE) */}
+          <TagFriendsBlock
+            taggedUsers={taggedUsers}
+            onOpenModal={() => setShowTagModal(true)}
+            onRemove={uid => setTaggedUsers(taggedUsers.filter(t => t.id !== uid))}
+            tagTypeLabel="Allenati con"
+            allowCoworkout
+          />
+
           {/* DATA/ORA PERSONALIZZATA */}
           <DateTimePicker value={customDate} onChange={setCustomDate} />
 
@@ -2298,6 +2370,19 @@ function WorkoutFlow({
             {saving ? 'Pubblicazione...' : 'Pubblica allenamento'}
           </button>
         </>
+      )}
+
+      {showTagModal && user && (
+        <TagSelectionModal
+          currentUserId={user.id}
+          alreadyTagged={taggedUsers}
+          tagType="coworkout"
+          onClose={() => setShowTagModal(false)}
+          onConfirm={users => {
+            setTaggedUsers(users)
+            setShowTagModal(false)
+          }}
+        />
       )}
     </div>
   )
@@ -2529,6 +2614,385 @@ function submitBtnStyle(disabled: boolean): React.CSSProperties {
     marginTop: '4px',
     boxShadow: disabled ? 'none' : '0 2px 8px rgba(124, 169, 130, 0.3)',
   }
+}
+
+/* ============ TAG FRIENDS BLOCK (selezione utenti taggati nel post) ============ */
+function TagFriendsBlock({
+  taggedUsers,
+  onOpenModal,
+  onRemove,
+  tagTypeLabel,
+  allowCoworkout,
+}: {
+  taggedUsers: TaggedUser[]
+  onOpenModal: () => void
+  onRemove: (uid: string) => void
+  tagTypeLabel: string
+  allowCoworkout?: boolean
+}) {
+  return (
+    <div style={cardStyle}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: taggedUsers.length > 0 ? '10px' : 0 }}>
+        <div>
+          <p style={{ fontSize: '14px', fontWeight: 600, color: '#000', margin: 0 }}>Tagga amici</p>
+          <p style={{ fontSize: '11px', color: '#8E8E93', margin: '2px 0 0' }}>
+            {allowCoworkout ? 'Allena con' : 'Menziona'} altri utenti nel post
+          </p>
+        </div>
+        <button
+          onClick={onOpenModal}
+          style={{
+            padding: '7px 12px',
+            borderRadius: '8px',
+            background: '#7CA982',
+            color: '#FFF',
+            border: 'none',
+            fontSize: '12px',
+            fontWeight: 600,
+            cursor: 'pointer',
+          }}
+        >
+          {taggedUsers.length > 0 ? 'Modifica' : '+ Aggiungi'}
+        </button>
+      </div>
+
+      {taggedUsers.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '4px' }}>
+          {taggedUsers.map(tu => (
+            <div
+              key={tu.id}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '5px 8px',
+                background: tu.tag_type === 'coworkout' ? 'rgba(124, 169, 130, 0.15)' : '#F2F2F7',
+                borderRadius: '14px',
+                border: tu.tag_type === 'coworkout' ? '1px solid rgba(124, 169, 130, 0.3)' : 'none',
+              }}
+            >
+              <span style={{ fontSize: '12px', fontWeight: 600, color: tu.tag_type === 'coworkout' ? '#4F7057' : '#000' }}>
+                @{tu.username || 'utente'}
+              </span>
+              {tu.tag_type === 'coworkout' && (
+                <span style={{ fontSize: '9px', fontWeight: 700, color: '#4F7057', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
+                  COND.
+                </span>
+              )}
+              <button
+                onClick={() => onRemove(tu.id)}
+                aria-label="Rimuovi tag"
+                style={{
+                  width: '16px',
+                  height: '16px',
+                  borderRadius: '50%',
+                  background: 'rgba(0,0,0,0.1)',
+                  border: 'none',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#3C3C43',
+                  padding: 0,
+                }}
+              >
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ============ TAG SELECTION MODAL (cerca e tagga utenti) ============ */
+function TagSelectionModal({
+  currentUserId,
+  alreadyTagged,
+  tagType,
+  onClose,
+  onConfirm,
+}: {
+  currentUserId: string
+  alreadyTagged: TaggedUser[]
+  tagType: 'mention' | 'coworkout'
+  onClose: () => void
+  onConfirm: (users: TaggedUser[]) => void
+}) {
+  const [query, setQuery] = useState('')
+  const [results, setResults] = useState<TaggedUser[]>([])
+  const [selected, setSelected] = useState<TaggedUser[]>(alreadyTagged)
+  const [loading, setLoading] = useState(false)
+  const [hasSearched, setHasSearched] = useState(false)
+
+  // Carica suggeriti (i miei seguiti) all'apertura
+  useEffect(() => {
+    loadSuggested()
+  }, [])
+
+  const loadSuggested = async () => {
+    setLoading(true)
+    const { data } = await supabase
+      .from('follows')
+      .select('profiles!follows_following_profiles_fkey(id, username, full_name, avatar_url)')
+      .eq('follower_id', currentUserId)
+      .order('created_at', { ascending: false })
+      .limit(20)
+
+    if (data) {
+      const profiles = data
+        .map((r: any) => r.profiles)
+        .filter(Boolean)
+        .filter((p: any) => p.id !== currentUserId)
+        .map((p: any) => ({ ...p, tag_type: tagType }))
+      setResults(profiles as TaggedUser[])
+    }
+    setLoading(false)
+  }
+
+  // Cerca utenti per nome/username
+  useEffect(() => {
+    const q = query.trim()
+    if (q.length < 2) {
+      if (!hasSearched) loadSuggested()
+      return
+    }
+    setHasSearched(true)
+    setLoading(true)
+    const t = setTimeout(async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, username, full_name, avatar_url')
+        .or('username.ilike.%' + q + '%,full_name.ilike.%' + q + '%')
+        .neq('id', currentUserId)
+        .limit(20)
+
+      if (data) {
+        setResults(
+          data.map((p: any) => ({ ...p, tag_type: tagType })) as TaggedUser[]
+        )
+      }
+      setLoading(false)
+    }, 300)
+
+    return () => clearTimeout(t)
+  }, [query, tagType, currentUserId])
+
+  const isSelected = (id: string) => selected.some(s => s.id === id)
+
+  const toggle = (u: TaggedUser) => {
+    if (isSelected(u.id)) {
+      setSelected(selected.filter(s => s.id !== u.id))
+    } else {
+      setSelected([...selected, u])
+    }
+  }
+
+  const toggleType = (id: string) => {
+    setSelected(selected.map(s => s.id === id ? { ...s, tag_type: s.tag_type === 'coworkout' ? 'mention' : 'coworkout' } : s))
+  }
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0,0,0,0.45)',
+        zIndex: 200,
+        display: 'flex',
+        alignItems: 'flex-end',
+        justifyContent: 'center',
+      }}
+      onClick={onClose}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: '#F2F2F7',
+          width: '100%',
+          maxWidth: '430px',
+          height: '85vh',
+          borderTopLeftRadius: '20px',
+          borderTopRightRadius: '20px',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        <div
+          style={{
+            padding: '10px 16px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            borderBottom: '0.5px solid rgba(0,0,0,0.08)',
+          }}
+        >
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#007AFF', fontSize: '15px', cursor: 'pointer', padding: '8px 0' }}>
+            Annulla
+          </button>
+          <h3 style={{ fontSize: '16px', fontWeight: 700, margin: 0 }}>Tagga amici</h3>
+          <button
+            onClick={() => onConfirm(selected)}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#007AFF',
+              fontSize: '15px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              padding: '8px 0',
+            }}
+          >
+            Fatto
+          </button>
+        </div>
+
+        <div style={{ padding: '12px 16px 0' }}>
+          <input
+            type="text"
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="Cerca per nome o username"
+            autoFocus
+            style={{
+              width: '100%',
+              height: '40px',
+              padding: '0 12px',
+              background: '#FFF',
+              border: 'none',
+              borderRadius: '10px',
+              fontSize: '14px',
+              outline: 'none',
+              fontFamily: 'inherit',
+              boxSizing: 'border-box',
+            }}
+          />
+        </div>
+
+        {selected.length > 0 && (
+          <div style={{ padding: '10px 16px 4px' }}>
+            <p style={{ fontSize: '11px', fontWeight: 700, color: '#8E8E93', letterSpacing: '0.3px', margin: '0 0 6px', textTransform: 'uppercase' }}>
+              Selezionati ({selected.length})
+            </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+              {selected.map(s => (
+                <button
+                  key={'sel-' + s.id}
+                  onClick={() => tagType === 'coworkout' && toggleType(s.id)}
+                  style={{
+                    padding: '4px 8px',
+                    background: s.tag_type === 'coworkout' ? 'rgba(124, 169, 130, 0.2)' : '#FFF',
+                    border: s.tag_type === 'coworkout' ? '1px solid rgba(124, 169, 130, 0.4)' : '1px solid rgba(0,0,0,0.1)',
+                    borderRadius: '12px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    color: s.tag_type === 'coworkout' ? '#4F7057' : '#000',
+                    cursor: tagType === 'coworkout' ? 'pointer' : 'default',
+                  }}
+                >
+                  @{s.username || 'utente'}
+                  {s.tag_type === 'coworkout' && ' \u2713 cond.'}
+                </button>
+              ))}
+            </div>
+            {tagType === 'coworkout' && (
+              <p style={{ fontSize: '10px', color: '#8E8E93', margin: '6px 0 0', lineHeight: 1.3 }}>
+                Tap su un utente per cambiare tipo: condiviso (allenamento appare anche sul suo profilo dopo conferma) o solo menzione.
+              </p>
+            )}
+          </div>
+        )}
+
+        <div style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }}>
+          {!query && results.length > 0 && (
+            <p style={{ fontSize: '11px', fontWeight: 700, color: '#8E8E93', letterSpacing: '0.3px', margin: '8px 16px 4px', textTransform: 'uppercase' }}>
+              Suggeriti
+            </p>
+          )}
+
+          {loading && (
+            <p style={{ textAlign: 'center', padding: '20px', color: '#8E8E93', fontSize: '13px' }}>Caricamento...</p>
+          )}
+          {!loading && results.length === 0 && query.length >= 2 && (
+            <p style={{ textAlign: 'center', padding: '20px', color: '#8E8E93', fontSize: '13px' }}>
+              Nessun utente trovato.
+            </p>
+          )}
+
+          {!loading && results.map(u => {
+            const sel = isSelected(u.id)
+            const username = u.username || 'utente'
+            return (
+              <button
+                key={u.id}
+                onClick={() => toggle(u)}
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '10px 16px',
+                  background: sel ? 'rgba(124, 169, 130, 0.08)' : 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                }}
+              >
+                <div
+                  style={{
+                    width: '40px',
+                    height: '40px',
+                    borderRadius: '50%',
+                    background: u.avatar_url ? 'transparent' : '#7CA982',
+                    color: '#FFF',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '15px',
+                    fontWeight: 700,
+                    overflow: 'hidden',
+                    flexShrink: 0,
+                  }}
+                >
+                  {u.avatar_url ? (
+                    <img src={u.avatar_url} alt={username} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    username[0].toUpperCase()
+                  )}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <p style={{ fontSize: '14px', fontWeight: 600, color: '#000', margin: 0 }}>{u.full_name || username}</p>
+                  <p style={{ fontSize: '12px', color: '#8E8E93', margin: '1px 0 0' }}>@{username}</p>
+                </div>
+                <div
+                  style={{
+                    width: '22px',
+                    height: '22px',
+                    borderRadius: '50%',
+                    background: sel ? '#7CA982' : 'transparent',
+                    border: sel ? 'none' : '1.5px solid #C7C7CC',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  {sel && (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FFF" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  )}
+                </div>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
 }
 
 /* ============ WORKOUT ICONS ============ */
