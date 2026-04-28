@@ -54,8 +54,18 @@ export default function ProfilePage() {
   const avatarFileRef = useRef<HTMLInputElement>(null)
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('[Avatar] handleAvatarChange triggered')
     const file = e.target.files?.[0]
-    if (!file || !user) return
+    if (!file) {
+      console.log('[Avatar] No file selected')
+      return
+    }
+    if (!user) {
+      console.log('[Avatar] No user logged in')
+      return
+    }
+
+    console.log('[Avatar] File selected:', file.name, file.size, file.type)
 
     if (!file.type.startsWith('image/')) {
       alert('Il file deve essere un\'immagine.')
@@ -70,20 +80,35 @@ export default function ProfilePage() {
     const reader = new FileReader()
     reader.onload = (ev) => {
       const dataUrl = ev.target?.result as string
+      console.log('[Avatar] FileReader loaded, dataUrl length:', dataUrl?.length)
       setAvatarToCrop(dataUrl)
+    }
+    reader.onerror = (err) => {
+      console.error('[Avatar] FileReader error:', err)
+      alert('Errore lettura immagine.')
     }
     reader.readAsDataURL(file)
 
-    if (avatarFileRef.current) avatarFileRef.current.value = ''
+    // Reset input value DOPO il read, altrimenti su iOS il file event si perde
+    setTimeout(() => {
+      if (avatarFileRef.current) avatarFileRef.current.value = ''
+    }, 100)
   }
 
   const uploadCroppedAvatar = async (croppedDataUrl: string) => {
-    if (!user) return
+    console.log('[Avatar] uploadCroppedAvatar called, dataUrl size:', croppedDataUrl?.length)
+    if (!user) {
+      console.log('[Avatar] No user')
+      return
+    }
     setAvatarUploading(true)
     try {
       // Converte dataUrl in Blob
       const blob = await (await fetch(croppedDataUrl)).blob()
+      console.log('[Avatar] Blob created, size:', blob.size)
+
       const filePath = user!.id + '/avatar-' + Date.now() + '.jpg'
+      console.log('[Avatar] Upload path:', filePath)
 
       const { error: uploadErr } = await supabase.storage
         .from('avatars')
@@ -92,7 +117,11 @@ export default function ProfilePage() {
           contentType: 'image/jpeg',
         })
 
-      if (uploadErr) throw uploadErr
+      if (uploadErr) {
+        console.error('[Avatar] Storage upload error:', uploadErr)
+        throw uploadErr
+      }
+      console.log('[Avatar] Storage upload OK')
 
       const { data: urlData } = supabase.storage
         .from('avatars')
@@ -100,13 +129,18 @@ export default function ProfilePage() {
 
       // Aggiungo timestamp per evitare cache browser
       const publicUrl = urlData.publicUrl + '?t=' + Date.now()
+      console.log('[Avatar] Public URL:', publicUrl)
 
       const { error: updErr } = await supabase
         .from('profiles')
         .update({ avatar_url: publicUrl })
         .eq('id', user!.id)
 
-      if (updErr) throw updErr
+      if (updErr) {
+        console.error('[Avatar] Profile update error:', updErr)
+        throw updErr
+      }
+      console.log('[Avatar] Profile updated, all done')
 
       setProfile(p => p ? { ...p, avatar_url: publicUrl } : p)
       setAvatarToCrop(null)
@@ -331,18 +365,19 @@ export default function ProfilePage() {
                   )}
                 </div>
 
-                {/* Bottone upload (file picker invisibile) — FUORI dall'overflow del cerchio */}
+                {/* Input file con id per essere referenziato da label */}
                 <input
                   ref={avatarFileRef}
+                  id="avatar-file-input"
                   type="file"
                   accept="image/*"
                   style={{ display: 'none' }}
                   onChange={handleAvatarChange}
                 />
-                <button
-                  onClick={() => avatarFileRef.current?.click()}
+                {/* Label collegato all'input — click trigger nativo, no JS necessario */}
+                <label
+                  htmlFor="avatar-file-input"
                   aria-label="Cambia foto profilo"
-                  disabled={avatarUploading}
                   style={{
                     position: 'absolute',
                     bottom: '0',
@@ -358,6 +393,7 @@ export default function ProfilePage() {
                     cursor: avatarUploading ? 'wait' : 'pointer',
                     boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
                     padding: 0,
+                    pointerEvents: avatarUploading ? 'none' : 'auto',
                   }}
                 >
                   {avatarUploading ? (
@@ -368,7 +404,7 @@ export default function ProfilePage() {
                       <circle cx="12" cy="13" r="4" />
                     </svg>
                   )}
-                </button>
+                </label>
               </div>
             </div>
 
@@ -1795,7 +1831,7 @@ function SettingsRow({
   )
 }
 
-/* ============ AVATAR CROP MODAL ============ */
+/* ============ AVATAR CROP MODAL — VERSIONE SEMPLICE NO DRAG ============ */
 function AvatarCropModal({
   imageSrc,
   uploading,
@@ -1808,60 +1844,36 @@ function AvatarCropModal({
   onConfirm: (croppedDataUrl: string) => void
 }) {
   const [zoom, setZoom] = useState(1)
-  const [offsetX, setOffsetX] = useState(0)
-  const [offsetY, setOffsetY] = useState(0)
-  const [imgSize, setImgSize] = useState<{ w: number; h: number } | null>(null)
-  const [dragging, setDragging] = useState(false)
-  const dragStart = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null)
+  const [imgLoaded, setImgLoaded] = useState(false)
+  const [imgSize, setImgSize] = useState({ w: 1, h: 1 })
 
-  const CANVAS_SIZE = 280
+  const CIRCLE_SIZE = 260
 
-  // Carica dimensioni immagine
   useEffect(() => {
     const img = new Image()
     img.onload = () => {
       setImgSize({ w: img.naturalWidth, h: img.naturalHeight })
+      setImgLoaded(true)
+    }
+    img.onerror = () => {
+      console.error('[Crop] Image load error')
+      alert('Errore caricamento immagine')
+      onClose()
     }
     img.src = imageSrc
-  }, [imageSrc])
+  }, [imageSrc, onClose])
 
-  // Calcola scala base per riempire il cerchio
-  const baseScale = imgSize ? Math.max(CANVAS_SIZE / imgSize.w, CANVAS_SIZE / imgSize.h) : 1
+  // Scala base: l'immagine deve coprire il cerchio (object-fit: cover)
+  const baseScale = Math.max(CIRCLE_SIZE / imgSize.w, CIRCLE_SIZE / imgSize.h)
   const finalScale = baseScale * zoom
+  const drawW = imgSize.w * finalScale
+  const drawH = imgSize.h * finalScale
+  const offsetX = (CIRCLE_SIZE - drawW) / 2
+  const offsetY = (CIRCLE_SIZE - drawH) / 2
 
-  const drawW = imgSize ? imgSize.w * finalScale : 0
-  const drawH = imgSize ? imgSize.h * finalScale : 0
-
-  // Centro l'immagine
-  const baseX = (CANVAS_SIZE - drawW) / 2
-  const baseY = (CANVAS_SIZE - drawH) / 2
-
-  // Limito offset entro i bordi
-  const maxOffsetX = Math.max(0, (drawW - CANVAS_SIZE) / 2)
-  const maxOffsetY = Math.max(0, (drawH - CANVAS_SIZE) / 2)
-  const clampedOffsetX = Math.max(-maxOffsetX, Math.min(maxOffsetX, offsetX))
-  const clampedOffsetY = Math.max(-maxOffsetY, Math.min(maxOffsetY, offsetY))
-
-  // Drag handlers (touch + mouse)
-  const onPointerDown = (clientX: number, clientY: number) => {
-    setDragging(true)
-    dragStart.current = { x: clientX, y: clientY, ox: clampedOffsetX, oy: clampedOffsetY }
-  }
-  const onPointerMove = (clientX: number, clientY: number) => {
-    if (!dragging || !dragStart.current) return
-    setOffsetX(dragStart.current.ox + (clientX - dragStart.current.x))
-    setOffsetY(dragStart.current.oy + (clientY - dragStart.current.y))
-  }
-  const onPointerUp = () => {
-    setDragging(false)
-    dragStart.current = null
-    setOffsetX(clampedOffsetX)
-    setOffsetY(clampedOffsetY)
-  }
-
-  // Conferma crop: disegna su canvas e ottieni dataUrl
   const handleConfirm = () => {
-    if (!imgSize) return
+    if (!imgLoaded) return
+
     const canvas = document.createElement('canvas')
     canvas.width = 400
     canvas.height = 400
@@ -1870,25 +1882,19 @@ function AvatarCropModal({
 
     const img = new Image()
     img.onload = () => {
-      // Coordinate sull'immagine originale corrispondenti al crop visibile (cerchio)
-      // Il cerchio visibile e' un quadrato CANVAS_SIZE x CANVAS_SIZE.
-      // L'immagine e' disegnata con scala finalScale, posizionata con (baseX + clampedOffsetX, baseY + clampedOffsetY).
-      // Il pixel (0, 0) del cerchio corrisponde al pixel (-(baseX + clampedOffsetX) / finalScale, -(baseY + clampedOffsetY) / finalScale) dell'originale.
+      const sx = -offsetX / finalScale
+      const sy = -offsetY / finalScale
+      const sw = CIRCLE_SIZE / finalScale
+      const sh = CIRCLE_SIZE / finalScale
 
-      const sx = -(baseX + clampedOffsetX) / finalScale
-      const sy = -(baseY + clampedOffsetY) / finalScale
-      const sw = CANVAS_SIZE / finalScale
-      const sh = CANVAS_SIZE / finalScale
-
-      // Sfondo bianco prima
       ctx.fillStyle = '#FFF'
       ctx.fillRect(0, 0, 400, 400)
       ctx.drawImage(img, sx, sy, sw, sh, 0, 0, 400, 400)
 
-      // Esporto JPEG compresso
       const dataUrl = canvas.toDataURL('image/jpeg', 0.9)
       onConfirm(dataUrl)
     }
+    img.onerror = () => alert('Errore elaborazione immagine')
     img.src = imageSrc
   }
 
@@ -1897,7 +1903,7 @@ function AvatarCropModal({
       style={{
         position: 'fixed',
         inset: 0,
-        background: 'rgba(0,0,0,0.85)',
+        background: 'rgba(0,0,0,0.92)',
         zIndex: 300,
         display: 'flex',
         flexDirection: 'column',
@@ -1905,7 +1911,7 @@ function AvatarCropModal({
     >
       <div
         style={{
-          padding: '12px 16px',
+          padding: '14px 16px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -1915,15 +1921,15 @@ function AvatarCropModal({
         <button
           onClick={onClose}
           disabled={uploading}
-          style={{ background: 'none', border: 'none', color: '#FFF', fontSize: '15px', cursor: uploading ? 'wait' : 'pointer', padding: '8px 0' }}
+          style={{ background: 'none', border: 'none', color: '#FFF', fontSize: '15px', cursor: uploading ? 'wait' : 'pointer', padding: '8px 4px' }}
         >
           Annulla
         </button>
         <h3 style={{ fontSize: '16px', fontWeight: 700, margin: 0 }}>Ritaglia foto</h3>
         <button
           onClick={handleConfirm}
-          disabled={uploading || !imgSize}
-          style={{ background: 'none', border: 'none', color: uploading ? '#888' : '#7CA982', fontSize: '15px', fontWeight: 600, cursor: uploading ? 'wait' : 'pointer', padding: '8px 0' }}
+          disabled={uploading || !imgLoaded}
+          style={{ background: 'none', border: 'none', color: uploading ? '#888' : '#7CA982', fontSize: '15px', fontWeight: 700, cursor: uploading || !imgLoaded ? 'wait' : 'pointer', padding: '8px 4px' }}
         >
           {uploading ? 'Carico...' : 'Salva'}
         </button>
@@ -1931,78 +1937,41 @@ function AvatarCropModal({
 
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
         <div
-          onMouseDown={e => onPointerDown(e.clientX, e.clientY)}
-          onMouseMove={e => dragging && onPointerMove(e.clientX, e.clientY)}
-          onMouseUp={onPointerUp}
-          onMouseLeave={onPointerUp}
-          onTouchStart={e => onPointerDown(e.touches[0].clientX, e.touches[0].clientY)}
-          onTouchMove={e => onPointerMove(e.touches[0].clientX, e.touches[0].clientY)}
-          onTouchEnd={onPointerUp}
           style={{
-            width: CANVAS_SIZE + 'px',
-            height: CANVAS_SIZE + 'px',
+            width: CIRCLE_SIZE + 'px',
+            height: CIRCLE_SIZE + 'px',
+            borderRadius: '50%',
+            overflow: 'hidden',
+            border: '3px solid rgba(255,255,255,0.3)',
             position: 'relative',
-            touchAction: 'none',
-            userSelect: 'none',
-            cursor: dragging ? 'grabbing' : 'grab',
+            background: '#000',
           }}
         >
-          {/* Sfondo: l'immagine intera ma scura */}
-          {imgSize && (
+          {imgLoaded && (
             <img
               src={imageSrc}
               alt=""
-              draggable={false}
               style={{
                 position: 'absolute',
                 width: drawW + 'px',
                 height: drawH + 'px',
-                left: (baseX + clampedOffsetX) + 'px',
-                top: (baseY + clampedOffsetY) + 'px',
-                opacity: 0.4,
+                left: offsetX + 'px',
+                top: offsetY + 'px',
                 pointerEvents: 'none',
+                userSelect: 'none',
               }}
+              draggable={false}
             />
           )}
-
-          {/* Maschera circolare con foto chiara */}
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              borderRadius: '50%',
-              overflow: 'hidden',
-              boxShadow: '0 0 0 4px rgba(255,255,255,0.2)',
-            }}
-          >
-            {imgSize && (
-              <img
-                src={imageSrc}
-                alt=""
-                draggable={false}
-                style={{
-                  position: 'absolute',
-                  width: drawW + 'px',
-                  height: drawH + 'px',
-                  left: (baseX + clampedOffsetX) + 'px',
-                  top: (baseY + clampedOffsetY) + 'px',
-                  pointerEvents: 'none',
-                }}
-              />
-            )}
-          </div>
         </div>
       </div>
 
-      <div style={{ padding: '20px 24px 30px', color: '#FFF' }}>
+      <div style={{ padding: '20px 24px 36px', color: '#FFF' }}>
         <p style={{ fontSize: '12px', textAlign: 'center', margin: '0 0 12px', opacity: 0.7 }}>
-          Trascina per spostare {'\u00B7'} usa lo slider per zoomare
+          Sposta lo slider per zoomare la foto
         </p>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="11" cy="11" r="8" />
-            <line x1="8" y1="11" x2="14" y2="11" strokeLinecap="round" />
-          </svg>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <span style={{ fontSize: '14px', opacity: 0.7 }}>1x</span>
           <input
             type="range"
             min={1}
@@ -2010,13 +1979,9 @@ function AvatarCropModal({
             step={0.05}
             value={zoom}
             onChange={e => setZoom(parseFloat(e.target.value))}
-            style={{ flex: 1, accentColor: '#7CA982' }}
+            style={{ flex: 1, accentColor: '#7CA982', height: '6px' }}
           />
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="11" cy="11" r="8" />
-            <line x1="8" y1="11" x2="14" y2="11" strokeLinecap="round" />
-            <line x1="11" y1="8" x2="11" y2="14" strokeLinecap="round" />
-          </svg>
+          <span style={{ fontSize: '14px', opacity: 0.7 }}>3x</span>
         </div>
       </div>
     </div>
