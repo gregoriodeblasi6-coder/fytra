@@ -52,29 +52,30 @@ export default function CommentsSheet({
     loadComments()
   }, [postId])
 
-  // Scroll lock body sotto la modale — preserva scroll position
+  // Scroll lock body sotto la modale — versione semplice senza position fixed
+  // (position fixed causa scroll-to-top in PWA installate iOS)
   useEffect(() => {
-    const scrollY = window.scrollY
-    const prevPosition = document.body.style.position
-    const prevTop = document.body.style.top
-    const prevWidth = document.body.style.width
     const prevOverflow = document.body.style.overflow
-
-    // Tecnica iOS-safe: blocca scroll body via position fixed, ricorda scroll
-    document.body.style.position = 'fixed'
-    document.body.style.top = '-' + scrollY + 'px'
-    document.body.style.width = '100%'
+    const prevTouch = (document.body.style as any).touchAction
     document.body.style.overflow = 'hidden'
-
+    ;(document.body.style as any).touchAction = 'none'
     return () => {
-      document.body.style.position = prevPosition
-      document.body.style.top = prevTop
-      document.body.style.width = prevWidth
       document.body.style.overflow = prevOverflow
-      // Ripristina la scroll position
-      window.scrollTo(0, scrollY)
+      ;(document.body.style as any).touchAction = prevTouch
     }
   }, [])
+
+  // Stato per chiusura animata: prima slide-out poi onClose
+  const [closing, setClosing] = useState(false)
+
+  const requestClose = () => {
+    if (closing) return
+    setClosing(true)
+    // Aspetto fine animazione (250ms) prima di smontare il componente
+    setTimeout(() => {
+      onClose()
+    }, 250)
+  }
 
   // Swipe down handlers (touch on header drag bar)
   const onTouchStart = (e: React.TouchEvent) => {
@@ -91,7 +92,7 @@ export default function CommentsSheet({
   }
   const onTouchEnd = () => {
     if (dragOffsetY > 100) {
-      onClose()
+      requestClose()
     }
     setDragOffsetY(0)
     dragStartY.current = null
@@ -295,7 +296,7 @@ export default function CommentsSheet({
         alignItems: 'flex-end',
         justifyContent: 'center',
       }}
-      onClick={onClose}
+      onClick={requestClose}
     >
       <div
         ref={sheetRef}
@@ -309,8 +310,12 @@ export default function CommentsSheet({
           borderTopRightRadius: '20px',
           display: 'flex',
           flexDirection: 'column',
-          transform: dragOffsetY > 0 ? 'translateY(' + dragOffsetY + 'px)' : 'none',
-          transition: dragOffsetY === 0 ? 'transform 0.2s' : 'none',
+          transform: closing
+            ? 'translateY(100vh)'
+            : (dragOffsetY > 0 ? 'translateY(' + dragOffsetY + 'px)' : 'none'),
+          transition: closing
+            ? 'transform 0.25s cubic-bezier(0.4, 0, 1, 1)'
+            : (dragOffsetY === 0 ? 'transform 0.2s' : 'none'),
           overscrollBehavior: 'contain',
         }}
       >
@@ -337,7 +342,7 @@ export default function CommentsSheet({
             Commenti {comments.length > 0 && <span style={{ color: '#8E8E93', fontWeight: 500 }}>({comments.length})</span>}
           </h3>
           <button
-            onClick={onClose}
+            onClick={requestClose}
             aria-label="Chiudi"
             style={{
               width: '32px',

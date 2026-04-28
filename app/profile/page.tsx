@@ -89,10 +89,16 @@ export default function ProfilePage() {
     }
     reader.readAsDataURL(file)
 
-    // Reset input value DOPO il read, altrimenti su iOS il file event si perde
-    setTimeout(() => {
-      if (avatarFileRef.current) avatarFileRef.current.value = ''
-    }, 100)
+    // Reset input value SUBITO dopo aver letto il file (per permettere riselezione stesso file)
+    if (avatarFileRef.current) avatarFileRef.current.value = ''
+  }
+
+  // Quando il bottone label viene cliccato, FORZO reset prima di aprire il picker
+  // (per garantire che onChange parta anche selezionando lo stesso file)
+  const handleAvatarLabelClick = () => {
+    if (avatarFileRef.current) {
+      avatarFileRef.current.value = ''
+    }
   }
 
   const uploadCroppedAvatar = async (croppedDataUrl: string) => {
@@ -378,6 +384,7 @@ export default function ProfilePage() {
                 <label
                   htmlFor="avatar-file-input"
                   aria-label="Cambia foto profilo"
+                  onClick={handleAvatarLabelClick}
                   style={{
                     position: 'absolute',
                     bottom: '0',
