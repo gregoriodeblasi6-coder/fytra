@@ -93,14 +93,6 @@ export default function ProfilePage() {
     if (avatarFileRef.current) avatarFileRef.current.value = ''
   }
 
-  // Quando il bottone label viene cliccato, FORZO reset prima di aprire il picker
-  // (per garantire che onChange parta anche selezionando lo stesso file)
-  const handleAvatarLabelClick = () => {
-    if (avatarFileRef.current) {
-      avatarFileRef.current.value = ''
-    }
-  }
-
   const uploadCroppedAvatar = async (croppedDataUrl: string) => {
     console.log('[Avatar] uploadCroppedAvatar called, dataUrl size:', croppedDataUrl?.length)
     if (!user) {
@@ -371,7 +363,7 @@ export default function ProfilePage() {
                   )}
                 </div>
 
-                {/* Input file con id per essere referenziato da label */}
+                {/* Input file con id per essere referenziato programmaticamente */}
                 <input
                   ref={avatarFileRef}
                   id="avatar-file-input"
@@ -380,11 +372,19 @@ export default function ProfilePage() {
                   style={{ display: 'none' }}
                   onChange={handleAvatarChange}
                 />
-                {/* Label collegato all'input — click trigger nativo, no JS necessario */}
-                <label
-                  htmlFor="avatar-file-input"
+                {/* Bottone con click programmatico — sappiamo che .click() sull'input funziona */}
+                <div
+                  onClick={() => {
+                    if (avatarUploading) return
+                    // Reset valore per permettere riselezione stesso file
+                    if (avatarFileRef.current) {
+                      avatarFileRef.current.value = ''
+                      avatarFileRef.current.click()
+                    }
+                  }}
+                  role="button"
                   aria-label="Cambia foto profilo"
-                  onClick={handleAvatarLabelClick}
+                  tabIndex={0}
                   style={{
                     position: 'absolute',
                     bottom: '0',
@@ -400,7 +400,7 @@ export default function ProfilePage() {
                     cursor: avatarUploading ? 'wait' : 'pointer',
                     boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
                     padding: 0,
-                    pointerEvents: avatarUploading ? 'none' : 'auto',
+                    userSelect: 'none',
                   }}
                 >
                   {avatarUploading ? (
@@ -411,7 +411,7 @@ export default function ProfilePage() {
                       <circle cx="12" cy="13" r="4" />
                     </svg>
                   )}
-                </label>
+                </div>
               </div>
             </div>
 
